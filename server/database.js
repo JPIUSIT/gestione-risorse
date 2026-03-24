@@ -56,6 +56,12 @@ db.exec(`
     ore REAL DEFAULT 0,
     note TEXT
   );
+  CREATE TABLE IF NOT EXISTS utenti_bu (
+    id TEXT PRIMARY KEY,
+    email TEXT NOT NULL,
+    bu_id TEXT NOT NULL,
+    ruolo TEXT NOT NULL
+  );
 `);
 
 // Seed dati iniziali se il DB è vuoto

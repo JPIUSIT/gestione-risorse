@@ -11,6 +11,14 @@ export default function Shell({ currentBU, currentRole, onLogout, onGlobalLogout
   const [loading, setLoading] = useState(true)
   const [tab, setTab] = useState('calendario')
 
+  // Gestione utenti (solo Admin)
+  const [utenti, setUtenti] = useState([])
+  const [buList, setBuList] = useState([])
+  const [nuovaEmail, setNuovaEmail] = useState('')
+  const [nuovaBU, setNuovaBU] = useState('')
+  const [nuovoRuolo, setNuovoRuolo] = useState('Membro')
+  const [savingUtente, setSavingUtente] = useState(false)
+
   useEffect(() => {
     if (!currentBU) return
     const bid = currentBU.id
@@ -27,11 +35,53 @@ export default function Shell({ currentBU, currentRole, onLogout, onGlobalLogout
     })
   }, [currentBU])
 
+  useEffect(() => {
+    if (currentRole !== 'Admin') return
+    Promise.all([
+      axios.get(`${API}/utenti`),
+      axios.get(`${API}/bu`),
+    ]).then(([u, b]) => {
+      setUtenti(u.data)
+      setBuList(b.data)
+      if (b.data.length > 0) setNuovaBU(b.data[0].id)
+    })
+  }, [currentRole])
+
+  const handleSalvaUtente = async () => {
+    if (!nuovaEmail.trim() || !nuovaBU) return
+    setSavingUtente(true)
+    const r = await axios.post(`${API}/utenti`, {
+      email: nuovaEmail.trim(),
+      bu_id: nuovaBU,
+      ruolo: nuovoRuolo
+    })
+    setUtenti(p => {
+      const exists = p.find(u => u.email === r.data.email)
+      if (exists) return p.map(u => u.email === r.data.email ? r.data : u)
+      return [...p, r.data]
+    })
+    setNuovaEmail('')
+    setSavingUtente(false)
+  }
+
+  const handleDeleteUtente = async (email) => {
+    if (!window.confirm(`Rimuovere ${email}?`)) return
+    await axios.delete(`${API}/utenti/${email}`)
+    setUtenti(p => p.filter(u => u.email !== email))
+  }
+
   if (loading) return (
     <div style={{display:'flex',alignItems:'center',justifyContent:'center',height:'100vh',color:TEAL,fontFamily:'sans-serif'}}>
       Caricamento dati...
     </div>
   )
+
+  const tabs = [
+    {id:'calendario', label:'📅 Calendario'},
+    {id:'commesse',   label:'📋 Commesse'},
+    {id:'risorse',    label:'👥 Risorse'},
+    ...(currentRole === 'Admin' ? [{id:'utenti', label:'⚙️ Utenti'}] : []),
+  ]
 
   return (
     <div style={{minHeight:'100vh',background:'#f8fafc',fontFamily:'sans-serif'}}>
@@ -60,11 +110,7 @@ export default function Shell({ currentBU, currentRole, onLogout, onGlobalLogout
 
       {/* Tab bar */}
       <div style={{background:'#fff',borderBottom:'1px solid #e2e8f0',padding:'0 24px',display:'flex',gap:4}}>
-        {[
-          {id:'calendario', label:'📅 Calendario'},
-          {id:'commesse',   label:'📋 Commesse'},
-          {id:'risorse',    label:'👥 Risorse'},
-        ].map(t => (
+        {tabs.map(t => (
           <button key={t.id} onClick={() => setTab(t.id)}
             style={{padding:'14px 20px',border:'none',background:'none',cursor:'pointer',fontSize:14,fontWeight:tab===t.id?700:400,color:tab===t.id?TEAL:'#64748b',borderBottom:tab===t.id?`2px solid ${TEAL}`:'2px solid transparent'}}>
             {t.label}
@@ -123,6 +169,79 @@ export default function Shell({ currentBU, currentRole, onLogout, onGlobalLogout
                   </div>
                 </div>
               ))}
+            </div>
+          </div>
+        )}
+
+        {tab === 'utenti' && currentRole === 'Admin' && (
+          <div style={{maxWidth:700}}>
+            <h2 style={{margin:'0 0 20px',color:'#1e293b',fontSize:18}}>⚙️ Gestione Utenti</h2>
+
+            {/* Form aggiunta */}
+            <div style={{background:'#fff',borderRadius:12,padding:20,border:'1px solid #e2e8f0',marginBottom:24}}>
+              <h3 style={{margin:'0 0 16px',fontSize:15,color:TEAL}}>Assegna utente a BU</h3>
+              <div style={{display:'flex',flexDirection:'column',gap:10}}>
+                <div>
+                  <label style={{fontSize:13,color:'#64748b',display:'block',marginBottom:4}}>Email account Microsoft</label>
+                  <input
+                    value={nuovaEmail}
+                    onChange={e => setNuovaEmail(e.target.value)}
+                    placeholder="utente@azienda.it"
+                    style={{width:'100%',padding:'8px 12px',borderRadius:7,border:'1px solid #e2e8f0',fontSize:14,outline:'none',boxSizing:'border-box'}}
+                  />
+                </div>
+                <div style={{display:'flex',gap:12}}>
+                  <div style={{flex:1}}>
+                    <label style={{fontSize:13,color:'#64748b',display:'block',marginBottom:4}}>Business Unit</label>
+                    <select value={nuovaBU} onChange={e => setNuovaBU(e.target.value)}
+                      style={{width:'100%',padding:'8px 12px',borderRadius:7,border:'1px solid #e2e8f0',fontSize:14,outline:'none'}}>
+                      {buList.map(b => <option key={b.id} value={b.id}>{b.nome}</option>)}
+                    </select>
+                  </div>
+                  <div style={{flex:1}}>
+                    <label style={{fontSize:13,color:'#64748b',display:'block',marginBottom:4}}>Ruolo</label>
+                    <select value={nuovoRuolo} onChange={e => setNuovoRuolo(e.target.value)}
+                      style={{width:'100%',padding:'8px 12px',borderRadius:7,border:'1px solid #e2e8f0',fontSize:14,outline:'none'}}>
+                      <option value="Coordinatore">Coordinatore</option>
+                      <option value="Membro">Membro</option>
+                    </select>
+                  </div>
+                </div>
+                <button onClick={handleSalvaUtente} disabled={savingUtente}
+                  style={{padding:'10px',borderRadius:8,border:'none',background:TEAL,color:'#fff',fontWeight:700,cursor:'pointer',fontSize:14,marginTop:4}}>
+                  {savingUtente ? 'Salvataggio...' : 'Assegna utente'}
+                </button>
+              </div>
+            </div>
+
+            {/* Lista utenti assegnati */}
+            <div style={{background:'#fff',borderRadius:12,border:'1px solid #e2e8f0',overflow:'hidden'}}>
+              <div style={{padding:'14px 20px',borderBottom:'1px solid #e2e8f0',fontWeight:700,fontSize:14,color:'#1e293b'}}>
+                Utenti assegnati — {utenti.length}
+              </div>
+              {utenti.length === 0 ? (
+                <div style={{padding:20,color:'#94a3b8',fontSize:14}}>Nessun utente assegnato.</div>
+              ) : (
+                utenti.map(u => {
+                  const bu = buList.find(b => b.id === u.bu_id)
+                  return (
+                    <div key={u.email} style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'12px 20px',borderBottom:'1px solid #f1f5f9'}}>
+                      <div>
+                        <div style={{fontWeight:600,fontSize:14,color:'#1e293b'}}>{u.email}</div>
+                        <div style={{fontSize:12,color:'#64748b',marginTop:2}}>
+                          {bu?.nome || u.bu_id} — <span style={{color:TEAL,fontWeight:600}}>{u.ruolo}</span>
+                        </div>
+                      </div>
+                      <button onClick={() => handleDeleteUtente(u.email)}
+                        style={{background:'none',border:'none',color:'#94a3b8',cursor:'pointer',fontSize:16,padding:'4px 8px',borderRadius:6}}
+                        onMouseEnter={e => e.currentTarget.style.color='#ef4444'}
+                        onMouseLeave={e => e.currentTarget.style.color='#94a3b8'}>
+                        ✕
+                      </button>
+                    </div>
+                  )
+                })
+              )}
             </div>
           </div>
         )}
