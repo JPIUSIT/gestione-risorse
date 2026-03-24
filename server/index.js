@@ -21,6 +21,7 @@ app.use('/api/commesse', require('./routes/commesse'));
 app.use('/api/risorse', require('./routes/risorse'));
 app.use('/api/allocazioni', require('./routes/allocazioni'));
 app.use('/api/utenti', require('./routes/utenti'));
+app.use('/api/sottofasi', require('./routes/sottofasi'));
 
 app.listen(PORT, () => {
   console.log(`Server running on http://localhost:${PORT}`);

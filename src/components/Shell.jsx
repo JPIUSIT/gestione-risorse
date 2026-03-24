@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import axios from 'axios'
 import CalendarioRisorse from './CalendarioRisorse'
 import NuovaCommessa from './NuovaCommessa'
+import Sottofasi from './Sottofasi'
 
 const TEAL = "#0d5c63"
 
@@ -12,7 +13,6 @@ export default function Shell({ currentBU, currentRole, onLogout, onGlobalLogout
   const [loading, setLoading] = useState(true)
   const [tab, setTab] = useState('calendario')
 
-  // Gestione utenti (solo Admin)
   const [utenti, setUtenti] = useState([])
   const [buList, setBuList] = useState([])
   const [nuovaEmail, setNuovaEmail] = useState('')
@@ -78,9 +78,10 @@ export default function Shell({ currentBU, currentRole, onLogout, onGlobalLogout
   )
 
   const tabs = [
-    {id:'calendario', label:'📅 Calendario'},
-    {id:'commesse',   label:'📋 Commesse'},
-    {id:'risorse',    label:'👥 Risorse'},
+    {id:'calendario',   label:'📅 Calendario'},
+    {id:'commesse',     label:'📋 Commesse'},
+    {id:'sottofasi',    label:'📌 Sottofasi'},
+    {id:'risorse',      label:'👥 Risorse'},
     ...(currentRole === 'Admin' || currentRole === 'Coordinatore' ? [{id:'nuova-commessa', label:'➕ Nuova Commessa'}] : []),
     ...(currentRole === 'Admin' ? [{id:'utenti', label:'⚙️ Utenti'}] : []),
   ]
@@ -111,10 +112,10 @@ export default function Shell({ currentBU, currentRole, onLogout, onGlobalLogout
       </div>
 
       {/* Tab bar */}
-      <div style={{background:'#fff',borderBottom:'1px solid #e2e8f0',padding:'0 24px',display:'flex',gap:4}}>
+      <div style={{background:'#fff',borderBottom:'1px solid #e2e8f0',padding:'0 24px',display:'flex',gap:4,overflowX:'auto'}}>
         {tabs.map(t => (
           <button key={t.id} onClick={() => setTab(t.id)}
-            style={{padding:'14px 20px',border:'none',background:'none',cursor:'pointer',fontSize:14,fontWeight:tab===t.id?700:400,color:tab===t.id?TEAL:'#64748b',borderBottom:tab===t.id?`2px solid ${TEAL}`:'2px solid transparent'}}>
+            style={{padding:'14px 20px',border:'none',background:'none',cursor:'pointer',fontSize:14,fontWeight:tab===t.id?700:400,color:tab===t.id?TEAL:'#64748b',borderBottom:tab===t.id?`2px solid ${TEAL}`:'2px solid transparent',whiteSpace:'nowrap'}}>
             {t.label}
           </button>
         ))}
@@ -153,6 +154,15 @@ export default function Shell({ currentBU, currentRole, onLogout, onGlobalLogout
               ))}
             </div>
           </div>
+        )}
+
+        {tab === 'sottofasi' && (
+          <Sottofasi
+            currentBU={currentBU}
+            commesse={commesse}
+            API={API}
+            currentRole={currentRole}
+          />
         )}
 
         {tab === 'risorse' && (
