@@ -3,6 +3,7 @@ import axios from 'axios'
 import CalendarioRisorse from './CalendarioRisorse'
 import NuovaCommessa from './NuovaCommessa'
 import Sottofasi from './Sottofasi'
+import DashboardScadenze from './DashboardScadenze'
 
 const TEAL = "#0d5c63"
 
@@ -79,6 +80,7 @@ export default function Shell({ currentBU, currentRole, onLogout, onGlobalLogout
 
   const tabs = [
     {id:'calendario',   label:'📅 Calendario'},
+    {id:'scadenze',     label:'⏰ Scadenze'},
     {id:'commesse',     label:'📋 Commesse'},
     {id:'sottofasi',    label:'📌 Sottofasi'},
     {id:'risorse',      label:'👥 Risorse'},
@@ -131,6 +133,14 @@ export default function Shell({ currentBU, currentRole, onLogout, onGlobalLogout
             commesse={commesse}
             allocazioni={allocazioni}
             setAllocazioni={setAllocazioni}
+            API={API}
+          />
+        )}
+
+        {tab === 'scadenze' && (
+          <DashboardScadenze
+            currentBU={currentBU}
+            commesse={commesse}
             API={API}
           />
         )}
