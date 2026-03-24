@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import axios from 'axios'
 import CalendarioRisorse from './CalendarioRisorse'
+import NuovaCommessa from './NuovaCommessa'
 
 const TEAL = "#0d5c63"
 
@@ -80,6 +81,7 @@ export default function Shell({ currentBU, currentRole, onLogout, onGlobalLogout
     {id:'calendario', label:'📅 Calendario'},
     {id:'commesse',   label:'📋 Commesse'},
     {id:'risorse',    label:'👥 Risorse'},
+    ...(currentRole === 'Admin' || currentRole === 'Coordinatore' ? [{id:'nuova-commessa', label:'➕ Nuova Commessa'}] : []),
     ...(currentRole === 'Admin' ? [{id:'utenti', label:'⚙️ Utenti'}] : []),
   ]
 
@@ -173,11 +175,20 @@ export default function Shell({ currentBU, currentRole, onLogout, onGlobalLogout
           </div>
         )}
 
+        {tab === 'nuova-commessa' && (currentRole === 'Admin' || currentRole === 'Coordinatore') && (
+          <NuovaCommessa
+            currentBU={currentBU}
+            commesse={commesse}
+            setCommesse={setCommesse}
+            setTab={setTab}
+            API={API}
+          />
+        )}
+
         {tab === 'utenti' && currentRole === 'Admin' && (
           <div style={{maxWidth:700}}>
             <h2 style={{margin:'0 0 20px',color:'#1e293b',fontSize:18}}>⚙️ Gestione Utenti</h2>
 
-            {/* Form aggiunta */}
             <div style={{background:'#fff',borderRadius:12,padding:20,border:'1px solid #e2e8f0',marginBottom:24}}>
               <h3 style={{margin:'0 0 16px',fontSize:15,color:TEAL}}>Assegna utente a BU</h3>
               <div style={{display:'flex',flexDirection:'column',gap:10}}>
@@ -214,7 +225,6 @@ export default function Shell({ currentBU, currentRole, onLogout, onGlobalLogout
               </div>
             </div>
 
-            {/* Lista utenti assegnati */}
             <div style={{background:'#fff',borderRadius:12,border:'1px solid #e2e8f0',overflow:'hidden'}}>
               <div style={{padding:'14px 20px',borderBottom:'1px solid #e2e8f0',fontWeight:700,fontSize:14,color:'#1e293b'}}>
                 Utenti assegnati — {utenti.length}

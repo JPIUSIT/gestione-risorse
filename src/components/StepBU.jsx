@@ -2,7 +2,7 @@ import { useState } from 'react'
 import axios from 'axios'
 
 const TEAL = "#0d5c63"
-const API = 'http://localhost:3001/api'
+const API = 'http://localhost:3002/api'
 
 export default function StepBU({ buList, setBuList, onSelect, user, onLogout }) {
   const [showAdd, setShowAdd] = useState(false)

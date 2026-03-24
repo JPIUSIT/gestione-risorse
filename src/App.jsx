@@ -7,7 +7,7 @@ import Shell from './components/Shell'
 import Login from './components/Login'
 import NoAccess from './components/NoAccess'
 
-const API = 'http://localhost:3001/api'
+const API = 'http://localhost:3002/api'
 const TEAL = "#0d5c63"
 
 export default function App() {
