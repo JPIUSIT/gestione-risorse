@@ -27,7 +27,7 @@ db.exec(`
     email TEXT
   );
 
-  CREATE TABLE IF NOT EXISTS commesse (
+CREATE TABLE IF NOT EXISTS commesse (
     id TEXT PRIMARY KEY,
     bu_id TEXT NOT NULL,
     cod TEXT NOT NULL,
@@ -35,7 +35,8 @@ db.exec(`
     cli TEXT,
     stato TEXT DEFAULT 'Pianificata',
     src TEXT DEFAULT 'Server',
-    arch INTEGER DEFAULT 0
+    arch INTEGER DEFAULT 0,
+    sharepoint_url TEXT
   );
 
   CREATE TABLE IF NOT EXISTS sottofasi (

@@ -4,6 +4,7 @@ import CalendarioRisorse from './CalendarioRisorse'
 import NuovaCommessa from './NuovaCommessa'
 import Sottofasi from './Sottofasi'
 import DashboardScadenze from './DashboardScadenze'
+import ImportaSharePoint from './ImportaSharePoint'
 
 const TEAL = "#0d5c63"
 
@@ -84,14 +85,16 @@ export default function Shell({ currentBU, currentRole, onLogout, onGlobalLogout
     {id:'commesse',     label:'📋 Commesse'},
     {id:'sottofasi',    label:'📌 Sottofasi'},
     {id:'risorse',      label:'👥 Risorse'},
-    ...(currentRole === 'Admin' || currentRole === 'Coordinatore' ? [{id:'nuova-commessa', label:'➕ Nuova Commessa'}] : []),
+    ...(currentRole === 'Admin' || currentRole === 'Coordinatore' ? [
+      {id:'nuova-commessa', label:'➕ Nuova Commessa'},
+      {id:'sharepoint',     label:'📁 SharePoint'},
+    ] : []),
     ...(currentRole === 'Admin' ? [{id:'utenti', label:'⚙️ Utenti'}] : []),
   ]
 
   return (
     <div style={{minHeight:'100vh',background:'#f8fafc',fontFamily:'sans-serif'}}>
 
-      {/* Header */}
       <div style={{background:TEAL,color:'#fff',padding:'0 24px',display:'flex',alignItems:'center',justifyContent:'space-between',height:56,flexShrink:0}}>
         <div style={{display:'flex',alignItems:'center',gap:12}}>
           <span style={{fontWeight:700,fontSize:16}}>Gestione Risorse</span>
@@ -113,7 +116,6 @@ export default function Shell({ currentBU, currentRole, onLogout, onGlobalLogout
         </div>
       </div>
 
-      {/* Tab bar */}
       <div style={{background:'#fff',borderBottom:'1px solid #e2e8f0',padding:'0 24px',display:'flex',gap:4,overflowX:'auto'}}>
         {tabs.map(t => (
           <button key={t.id} onClick={() => setTab(t.id)}
@@ -123,7 +125,6 @@ export default function Shell({ currentBU, currentRole, onLogout, onGlobalLogout
         ))}
       </div>
 
-      {/* Contenuto */}
       <div style={{padding:24}}>
 
         {tab === 'calendario' && (
@@ -157,8 +158,12 @@ export default function Shell({ currentBU, currentRole, onLogout, onGlobalLogout
                   </div>
                   <div style={{fontWeight:600,color:'#1e293b',fontSize:14,marginBottom:4}}>{c.tit}</div>
                   <div style={{color:'#64748b',fontSize:12}}>{c.cli}</div>
-                  <div style={{marginTop:8,fontSize:11,color:'#94a3b8'}}>
+                  <div style={{marginTop:8,fontSize:11,color:'#94a3b8',display:'flex',alignItems:'center',gap:6}}>
                     {c.src === 'SharePoint' ? '📁 SharePoint' : '🖥 Server'}
+                    {c.sharepoint_url && (
+                      <a href={c.sharepoint_url} target="_blank" rel="noreferrer"
+                        style={{color:TEAL,fontSize:11,textDecoration:'none'}}>↗ Apri sito</a>
+                    )}
                   </div>
                 </div>
               ))}
@@ -205,21 +210,27 @@ export default function Shell({ currentBU, currentRole, onLogout, onGlobalLogout
           />
         )}
 
+        {tab === 'sharepoint' && (currentRole === 'Admin' || currentRole === 'Coordinatore') && (
+          <ImportaSharePoint
+            currentBU={currentBU}
+            commesse={commesse}
+            setCommesse={setCommesse}
+            setTab={setTab}
+            API={API}
+          />
+        )}
+
         {tab === 'utenti' && currentRole === 'Admin' && (
           <div style={{maxWidth:700}}>
             <h2 style={{margin:'0 0 20px',color:'#1e293b',fontSize:18}}>⚙️ Gestione Utenti</h2>
-
             <div style={{background:'#fff',borderRadius:12,padding:20,border:'1px solid #e2e8f0',marginBottom:24}}>
               <h3 style={{margin:'0 0 16px',fontSize:15,color:TEAL}}>Assegna utente a BU</h3>
               <div style={{display:'flex',flexDirection:'column',gap:10}}>
                 <div>
                   <label style={{fontSize:13,color:'#64748b',display:'block',marginBottom:4}}>Email account Microsoft</label>
-                  <input
-                    value={nuovaEmail}
-                    onChange={e => setNuovaEmail(e.target.value)}
+                  <input value={nuovaEmail} onChange={e => setNuovaEmail(e.target.value)}
                     placeholder="utente@azienda.it"
-                    style={{width:'100%',padding:'8px 12px',borderRadius:7,border:'1px solid #e2e8f0',fontSize:14,outline:'none',boxSizing:'border-box'}}
-                  />
+                    style={{width:'100%',padding:'8px 12px',borderRadius:7,border:'1px solid #e2e8f0',fontSize:14,outline:'none',boxSizing:'border-box'}}/>
                 </div>
                 <div style={{display:'flex',gap:12}}>
                   <div style={{flex:1}}>
@@ -244,7 +255,6 @@ export default function Shell({ currentBU, currentRole, onLogout, onGlobalLogout
                 </button>
               </div>
             </div>
-
             <div style={{background:'#fff',borderRadius:12,border:'1px solid #e2e8f0',overflow:'hidden'}}>
               <div style={{padding:'14px 20px',borderBottom:'1px solid #e2e8f0',fontWeight:700,fontSize:14,color:'#1e293b'}}>
                 Utenti assegnati — {utenti.length}

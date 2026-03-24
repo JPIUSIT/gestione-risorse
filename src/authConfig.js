@@ -14,6 +14,10 @@ export const loginRequest = {
   scopes: ["User.Read", "profile", "email", "openid"],
 };
 
+export const graphRequest = {
+  scopes: ["Sites.Read.All"],
+};
+
 export const getRuoloFromAccount = (account) => {
   if (!account) return null
   const roles = account.idTokenClaims?.roles || []
