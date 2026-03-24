@@ -4,7 +4,7 @@ import CalendarioRisorse from './CalendarioRisorse'
 
 const TEAL = "#0d5c63"
 
-export default function Shell({ currentBU, currentRole, onLogout, API }) {
+export default function Shell({ currentBU, currentRole, onLogout, onGlobalLogout, user, API }) {
   const [commesse, setCommesse] = useState([])
   const [risorse, setRisorse] = useState([])
   const [allocazioni, setAllocazioni] = useState([])
@@ -35,17 +35,27 @@ export default function Shell({ currentBU, currentRole, onLogout, API }) {
 
   return (
     <div style={{minHeight:'100vh',background:'#f8fafc',fontFamily:'sans-serif'}}>
+
       {/* Header */}
       <div style={{background:TEAL,color:'#fff',padding:'0 24px',display:'flex',alignItems:'center',justifyContent:'space-between',height:56,flexShrink:0}}>
         <div style={{display:'flex',alignItems:'center',gap:12}}>
           <span style={{fontWeight:700,fontSize:16}}>Gestione Risorse</span>
           <span style={{background:'rgba(255,255,255,0.2)',borderRadius:6,padding:'2px 10px',fontSize:12}}>{currentBU?.nome}</span>
-          <span style={{background:'rgba(255,255,255,0.15)',borderRadius:6,padding:'2px 10px',fontSize:12}}>{currentRole}</span>
         </div>
-        <button onClick={onLogout}
-          style={{background:'rgba(255,255,255,0.15)',border:'none',color:'#fff',padding:'6px 14px',borderRadius:7,cursor:'pointer',fontSize:13}}>
-          Cambia BU
-        </button>
+        <div style={{display:'flex',alignItems:'center',gap:12}}>
+          <span style={{fontSize:13}}>{user?.name || user?.username}</span>
+          <span style={{background:'rgba(255,255,255,0.2)',borderRadius:6,padding:'2px 10px',fontSize:12,fontWeight:600}}>
+            {currentRole}
+          </span>
+          <button onClick={onLogout}
+            style={{background:'rgba(255,255,255,0.15)',border:'none',color:'#fff',padding:'5px 12px',borderRadius:6,cursor:'pointer',fontSize:12}}>
+            Cambia BU
+          </button>
+          <button onClick={onGlobalLogout}
+            style={{background:'rgba(255,255,255,0.15)',border:'none',color:'#fff',padding:'5px 12px',borderRadius:6,cursor:'pointer',fontSize:12}}>
+            Esci
+          </button>
+        </div>
       </div>
 
       {/* Tab bar */}
