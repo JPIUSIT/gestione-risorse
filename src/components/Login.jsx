@@ -7,7 +7,7 @@ export default function Login() {
   const { instance } = useMsal()
 
   const handleLogin = () => {
-    instance.loginPopup(loginRequest).catch(e => console.error(e))
+    instance.loginRedirect(loginRequest).catch(e => console.error(e))
   }
 
   return (
