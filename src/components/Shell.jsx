@@ -100,42 +100,41 @@ export default function Shell({ currentBU, currentRole, onLogout, onGlobalLogout
     })
 
   const TABS = [
-    { id: 'dashboard', label: 'Dashboard' },
-    { id: 'riepilogo', label: 'Riepilogo Risorse' },
-    { id: 'commesse', label: 'Gestione Commesse' },
-    { id: 'risorse_tab', label: 'Gestione Risorse' },
-    { id: 'scadenziario', label: 'Scadenziario' },
-    ...(currentRole === 'Admin' ? [{ id: 'utenti', label: '⚙️ Utenti' }] : []),
+  { id: 'dashboard',   label: '📊 Dashboard' },
+  { id: 'riepilogo',   label: '👥 Riepilogo Risorse' },
+  { id: 'commesse',    label: '📋 Gestione Commesse' },
+  { id: 'risorse_tab', label: '🔧 Gestione Risorse' },
+  { id: 'scadenziario',label: '📅 Scadenziario' },
+  ...(currentRole === 'Admin' ? [{ id: 'utenti', label: '⚙️ Utenti' }] : []),
   ]
 
   return (
     <div style={{height:'100vh',display:'flex',flexDirection:'column',fontFamily:'sans-serif',background:'#f0f4f8'}}>
 
       {/* Header */}
-      <div style={{background:TEAL,color:'#fff',padding:'0 16px',display:'flex',alignItems:'center',justifyContent:'space-between',height:44,flexShrink:0,zIndex:10}}>
-        <div style={{display:'flex',alignItems:'center',gap:10}}>
-          <span style={{fontWeight:700,fontSize:15,letterSpacing:0.5}}>J+S</span>
-          <span style={{color:'rgba(255,255,255,0.5)',fontSize:14}}>|</span>
-          <span style={{fontWeight:600,fontSize:13}}>Gestione Risorse BU</span>
-          <div style={{display:'flex',alignItems:'center',gap:6,marginLeft:8,background:'rgba(255,255,255,0.12)',borderRadius:6,padding:'2px 10px'}}>
-            <span style={{fontSize:12,fontWeight:700}}>{currentBU?.codice || currentBU?.nome}</span>
-          </div>
-        </div>
-        <div style={{display:'flex',alignItems:'center',gap:10}}>
-          <span style={{fontSize:12,color:'rgba(255,255,255,0.7)'}}>Ruolo:</span>
-          <span style={{fontSize:12,color:currentRole==='Coordinatore'?'#fff':'rgba(255,255,255,0.5)',fontWeight:currentRole==='Coordinatore'?700:400,cursor:'pointer'}}
-            onClick={() => currentRole!=='Coordinatore' && onLogout()}>✓ Coordinatore</span>
-          <span style={{fontSize:12,color:'rgba(255,255,255,0.3)'}}>|</span>
-          <span style={{fontSize:12,color:currentRole==='Membro'?'#fff':'rgba(255,255,255,0.5)',cursor:'pointer'}}
-            onClick={() => currentRole==='Membro' && onLogout()}>Membro</span>
-          <div style={{width:1,height:20,background:'rgba(255,255,255,0.2)',margin:'0 4px'}}/>
-          <span style={{fontSize:12,color:'rgba(255,255,255,0.8)'}}>{user?.name || user?.username}</span>
-          <button onClick={onGlobalLogout}
-            style={{background:'rgba(255,255,255,0.15)',border:'none',color:'#fff',padding:'3px 10px',borderRadius:5,cursor:'pointer',fontSize:11}}>
-            Esci
-          </button>
-        </div>
-      </div>
+<div style={{background:TEAL,color:'#fff',padding:'0 16px',display:'flex',alignItems:'center',justifyContent:'space-between',height:44,flexShrink:0,zIndex:10}}>
+  <div style={{display:'flex',alignItems:'center',gap:10}}>
+    <span style={{fontWeight:700,fontSize:15,letterSpacing:0.5}}>J+S</span>
+    <span style={{color:'rgba(255,255,255,0.4)',fontSize:14}}>|</span>
+    <span style={{fontWeight:600,fontSize:13}}>Gestione Risorse BU</span>
+  </div>
+  <div style={{display:'flex',alignItems:'center',gap:12}}>
+    <div style={{display:'flex',alignItems:'center',gap:6,background:'rgba(255,255,255,0.12)',borderRadius:6,padding:'3px 10px'}}>
+      <span style={{fontSize:12,fontWeight:700}}>{currentBU?.codice || currentBU?.nome}</span>
+      <span style={{fontSize:11,color:'rgba(255,255,255,0.6)',cursor:'pointer'}} onClick={onLogout}>⇄</span>
+    </div>
+    <span style={{fontSize:12,color:'rgba(255,255,255,0.6)'}}>Ruolo:</span>
+    <span style={{fontSize:12,color:currentRole==='Coordinatore'?'#fff':'rgba(255,255,255,0.5)',fontWeight:currentRole==='Coordinatore'?700:400}}>✓ Coordinatore</span>
+    <span style={{fontSize:12,color:'rgba(255,255,255,0.3)'}}>|</span>
+    <span style={{fontSize:12,color:currentRole==='Membro'?'#fff':'rgba(255,255,255,0.5)'}}>Membro</span>
+    <div style={{width:1,height:20,background:'rgba(255,255,255,0.2)',margin:'0 4px'}}/>
+    <span style={{fontSize:12,color:'rgba(255,255,255,0.8)'}}>{user?.name || user?.username}</span>
+    <button onClick={onGlobalLogout}
+      style={{background:'rgba(255,255,255,0.15)',border:'none',color:'#fff',padding:'3px 10px',borderRadius:5,cursor:'pointer',fontSize:11}}>
+      Esci
+    </button>
+  </div>
+</div>
 
       {/* Tab bar */}
       <div style={{background:TEAL2,display:'flex',gap:0,flexShrink:0,borderBottom:'2px solid rgba(255,255,255,0.1)'}}>
@@ -157,7 +156,7 @@ export default function Shell({ currentBU, currentRole, onLogout, onGlobalLogout
             {/* Colonna 1 — Commesse */}
             <div style={{width:240,flexShrink:0,borderRight:'1px solid #e2e8f0',background:'#fff',display:'flex',flexDirection:'column',overflow:'hidden'}}>
               <div style={{padding:'8px 10px',borderBottom:'1px solid #e2e8f0',flexShrink:0}}>
-                <div style={{fontSize:12,fontWeight:700,color:'#64748b',marginBottom:6}}>Commesse</div>
+                <div style={{fontSize:12,fontWeight:700,color:'#fff',background:TEAL,margin:'-8px -10px 8px -10px',padding:'6px 10px'}}>Commesse</div>
                 <div style={{position:'relative',marginBottom:6}}>
                   <span style={{position:'absolute',left:7,top:'50%',transform:'translateY(-50%)',fontSize:11,color:'#94a3b8'}}>🔍</span>
                   <input value={cercaCom} onChange={e=>setCercaCom(e.target.value)} placeholder="Cerca commessa..."
@@ -196,7 +195,7 @@ export default function Shell({ currentBU, currentRole, onLogout, onGlobalLogout
             {/* Colonna 2 — Risorse BU */}
             <div style={{width:230,flexShrink:0,borderRight:'1px solid #e2e8f0',background:'#fff',display:'flex',flexDirection:'column',overflow:'hidden'}}>
               <div style={{padding:'8px 10px',borderBottom:'1px solid #e2e8f0',flexShrink:0}}>
-                <div style={{fontSize:12,fontWeight:700,color:'#64748b',marginBottom:6}}>Risorse BU</div>
+                <div style={{fontSize:12,fontWeight:700,color:'#fff',background:TEAL,margin:'-8px -10px 8px -10px',padding:'6px 10px'}}>Risorse BU</div>
                 {selectedCom && (
                   <div style={{background:'#f0f9fa',border:'1px solid #bfdbfe',borderRadius:5,padding:'3px 7px',fontSize:10,color:TEAL,fontWeight:600,marginBottom:6}}>
                     {selectedCom.cod}
