@@ -7,6 +7,7 @@ import DashboardScadenze from './DashboardScadenze'
 import ImportaSharePoint from './ImportaSharePoint'
 import KanbanCommesse from './KanbanCommesse'
 import RiepilogoRisorse from './RiepilogoRisorse'
+import Scadenziario from './Scadenziario'
 
 const TEAL = "#0d5c63"
 const TEAL2 = "#0a4a50"
@@ -465,10 +466,12 @@ export default function Shell({ currentBU, currentRole, onLogout, onGlobalLogout
 
         {/* SCADENZIARIO */}
         {tab === 'scadenziario' && (
-          <div style={{flex:1,overflow:'auto',padding:20}}>
-            <DashboardScadenze currentBU={currentBU} commesse={commesse} API={API} />
-          </div>
-        )}
+  <Scadenziario
+    currentBU={currentBU}
+    commesse={commesse}
+    API={API}
+  />
+         )}
 
         {/* NUOVA COMMESSA */}
         {tab === 'nuova_commessa' && (
