@@ -53,10 +53,12 @@ CREATE TABLE IF NOT EXISTS commesse (
     bu_id TEXT NOT NULL,
     ris_id TEXT NOT NULL,
     com_id TEXT NOT NULL,
+    sf_id TEXT,
     data TEXT NOT NULL,
     ore REAL DEFAULT 0,
     note TEXT
   );
+
   CREATE TABLE IF NOT EXISTS utenti_bu (
     id TEXT PRIMARY KEY,
     email TEXT NOT NULL,
