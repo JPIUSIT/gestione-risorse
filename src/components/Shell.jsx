@@ -6,6 +6,7 @@ import Sottofasi from './Sottofasi'
 import DashboardScadenze from './DashboardScadenze'
 import ImportaSharePoint from './ImportaSharePoint'
 import KanbanCommesse from './KanbanCommesse'
+import RiepilogoRisorse from './RiepilogoRisorse'
 
 const TEAL = "#0d5c63"
 const TEAL2 = "#0a4a50"
@@ -352,52 +353,14 @@ export default function Shell({ currentBU, currentRole, onLogout, onGlobalLogout
 
         {/* RIEPILOGO RISORSE */}
         {tab === 'riepilogo' && (
-          <div style={{flex:1,overflow:'auto',padding:20}}>
-            <h2 style={{margin:'0 0 16px',color:'#1e293b',fontSize:18}}>Riepilogo Risorse</h2>
-            <div style={{background:'#fff',borderRadius:10,border:'1px solid #e2e8f0',overflow:'hidden'}}>
-              <table style={{width:'100%',borderCollapse:'collapse'}}>
-                <thead>
-                  <tr style={{background:'#f8fafc'}}>
-                    <th style={{padding:'10px 14px',textAlign:'left',fontSize:12,color:'#64748b',fontWeight:600,borderBottom:'1px solid #e2e8f0'}}>Risorsa</th>
-                    <th style={{padding:'10px 14px',textAlign:'left',fontSize:12,color:'#64748b',fontWeight:600,borderBottom:'1px solid #e2e8f0'}}>Ruolo</th>
-                    <th style={{padding:'10px 14px',textAlign:'center',fontSize:12,color:'#64748b',fontWeight:600,borderBottom:'1px solid #e2e8f0'}}>Ore sett.</th>
-                    <th style={{padding:'10px 14px',textAlign:'center',fontSize:12,color:'#64748b',fontWeight:600,borderBottom:'1px solid #e2e8f0'}}>Commesse</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {risorse.map((r,i) => {
-                    const col = cCol(r.id)
-                    const rgb = `${parseInt(col.slice(1,3),16)},${parseInt(col.slice(3,5),16)},${parseInt(col.slice(5,7),16)}`
-                    const oggi = new Date()
-                    const lunedi = new Date(oggi); lunedi.setDate(oggi.getDate()-(oggi.getDay()===0?6:oggi.getDay()-1))
-                    const oreW = allocazioni.filter(a => {
-                      if(a.ris_id!==r.id)return false
-                      const d=new Date(a.data+'T00:00:00')
-                      return d>=lunedi&&d<new Date(lunedi.getTime()+7*86400000)
-                    }).reduce((s,a)=>s+(a.ore||0),0)
-                    const comIds = [...new Set(allocazioni.filter(a=>a.ris_id===r.id).map(a=>a.com_id))]
-                    return (
-                      <tr key={r.id} style={{background:i%2===0?'#fff':'#fafafa',borderBottom:'1px solid #f1f5f9'}}>
-                        <td style={{padding:'10px 14px'}}>
-                          <div style={{display:'flex',alignItems:'center',gap:8}}>
-                            <div style={{width:30,height:30,borderRadius:'50%',background:`rgba(${rgb},0.15)`,border:`1.5px solid rgba(${rgb},0.5)`,display:'flex',alignItems:'center',justifyContent:'center',fontSize:10,fontWeight:700,color:col}}>
-                              {r.nome?.[0]}{r.cogn?.[0]}
-                            </div>
-                            <span style={{fontWeight:600,fontSize:13,color:'#1e293b'}}>{r.nome} {r.cogn}</span>
-                          </div>
-                        </td>
-                        <td style={{padding:'10px 14px',fontSize:12,color:'#64748b'}}>{r.ruolo}</td>
-                        <td style={{padding:'10px 14px',textAlign:'center'}}>
-                          <span style={{fontSize:13,fontWeight:700,color:oreW>0?TEAL:'#94a3b8'}}>{oreW}h</span>
-                        </td>
-                        <td style={{padding:'10px 14px',textAlign:'center',fontSize:12,color:'#64748b'}}>{comIds.length}</td>
-                      </tr>
-                    )
-                  })}
-                </tbody>
-              </table>
-            </div>
-          </div>
+          <RiepilogoRisorse
+            risorse={risorse}
+            commesse={commesse}
+            allocazioni={allocazioni}
+            setAllocazioni={setAllocazioni}
+            currentBU={currentBU}
+            API={API}
+          />
         )}
 
         {/* GESTIONE COMMESSE */}
