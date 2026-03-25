@@ -65,6 +65,14 @@ CREATE TABLE IF NOT EXISTS commesse (
     bu_id TEXT NOT NULL,
     ruolo TEXT NOT NULL
   );
+
+  CREATE TABLE IF NOT EXISTS milestones (
+    id TEXT PRIMARY KEY,
+    com_id TEXT NOT NULL,
+    bu_id TEXT NOT NULL,
+    nome TEXT NOT NULL,
+    scad TEXT
+  );
 `);
 
 // Seed dati iniziali se il DB è vuoto

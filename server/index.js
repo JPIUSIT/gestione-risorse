@@ -24,6 +24,7 @@ app.use('/api/risorse',    require('./routes/risorse'));
 app.use('/api/allocazioni',require('./routes/allocazioni'));
 app.use('/api/utenti',     require('./routes/utenti'));
 app.use('/api/sottofasi',  require('./routes/sottofasi'));
+app.use('/api/milestones', require('./routes/milestones'));
 
 // Serve frontend React (build)
 app.use(express.static(path.join(__dirname, '../dist')));
