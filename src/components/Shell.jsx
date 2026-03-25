@@ -272,21 +272,117 @@ export default function Shell({ currentBU, currentRole, onLogout, onGlobalLogout
               </div>
             </div>
 
-            {/* Colonna 3 — Calendario */}
-            <div style={{flex:1,display:'flex',flexDirection:'column',overflow:'hidden',background:'#f8fafc'}}>
-              <CalendarioRisorse
-                currentBU={currentBU}
-                risorse={risorse}
-                commesse={commesse}
-                allocazioni={allocazioni}
-                setAllocazioni={setAllocazioni}
-                selectedCom={selectedCom}
-                selectedRis={selectedRis}
-                setSelectedRis={setSelectedRis}
-                API={API}
-                layout="embedded"
-              />
+            {/* Colonna 3 — Calendario + Pannello dettaglio risorsa */}
+<div style={{flex:1,display:'flex',flexDirection:'column',overflow:'hidden',background:'#f8fafc'}}>
+  <CalendarioRisorse
+    currentBU={currentBU}
+    risorse={risorse}
+    commesse={commesse}
+    allocazioni={allocazioni}
+    setAllocazioni={setAllocazioni}
+    selectedCom={selectedCom}
+    selectedRis={selectedRis}
+    setSelectedRis={setSelectedRis}
+    API={API}
+    layout="embedded"
+  />
+
+  {/* Pannello dettaglio risorsa */}
+  {selectedRis && (()=>{
+    const col = cCol(selectedRis.id)
+    const oggi = new Date()
+    const lunedi = new Date(oggi); lunedi.setDate(oggi.getDate()-(oggi.getDay()===0?6:oggi.getDay()-1))
+    const fineSettimana = new Date(lunedi.getTime()+7*86400000)
+    const allocRis = allocazioni
+      .filter(a => {
+        if (a.ris_id !== selectedRis.id) return false
+        const d = new Date(a.data+'T00:00:00')
+        return d >= lunedi && d < fineSettimana
+      })
+      .sort((a,b) => a.data>b.data?1:-1)
+    const oreSettimana = allocRis.reduce((s,a)=>s+(a.ore||0),0)
+    const comIds = [...new Set(allocRis.map(a=>a.com_id))]
+    const disp = s => { if(!s)return""; const[y,m,dd]=s.split("-"); return`${dd}/${m}/${y}` }
+    return (
+      <div style={{background:'#fff',borderTop:'2px solid #e2e8f0',flexShrink:0,maxHeight:220,display:'flex',flexDirection:'column',overflow:'hidden'}}>
+        {/* Header pannello */}
+        <div style={{background:TEAL,padding:'6px 14px',display:'flex',alignItems:'center',gap:10,flexShrink:0}}>
+          <div style={{width:28,height:28,borderRadius:'50%',background:`rgba(${parseInt(col.slice(1,3),16)},${parseInt(col.slice(3,5),16)},${parseInt(col.slice(5,7),16)},0.25)`,border:`1.5px solid rgba(255,255,255,0.4)`,display:'flex',alignItems:'center',justifyContent:'center',fontWeight:700,fontSize:10,color:'#fff',flexShrink:0}}>
+            {selectedRis.nome?.[0]}{selectedRis.cogn?.[0]}
+          </div>
+          <div style={{flex:1}}>
+            <span style={{fontWeight:700,fontSize:13,color:'#fff'}}>{selectedRis.nome} {selectedRis.cogn}</span>
+            <span style={{fontSize:11,color:'rgba(255,255,255,0.6)',marginLeft:8}}>{selectedRis.ruolo}</span>
+          </div>
+          <div style={{display:'flex',alignItems:'center',gap:12}}>
+            <div style={{textAlign:'right'}}>
+              <div style={{fontSize:10,color:'rgba(255,255,255,0.6)'}}>Ore sett.</div>
+              <div style={{fontSize:14,fontWeight:700,color:'#fff'}}>{oreSettimana}</div>
             </div>
+            <div style={{textAlign:'right'}}>
+              <div style={{fontSize:10,color:'rgba(255,255,255,0.6)'}}>Commesse</div>
+              <div style={{fontSize:14,fontWeight:700,color:'#fff'}}>{comIds.length}</div>
+            </div>
+            <button onClick={()=>setSelectedRis(null)}
+              style={{background:'rgba(255,255,255,0.15)',border:'none',color:'#fff',width:24,height:24,borderRadius:4,cursor:'pointer',fontSize:14,display:'flex',alignItems:'center',justifyContent:'center'}}>×</button>
+          </div>
+        </div>
+
+        {/* Lista allocazioni */}
+        <div style={{flex:1,overflowY:'auto'}}>
+          {allocRis.length === 0 ? (
+            <div style={{padding:'16px',textAlign:'center',color:'#94a3b8',fontSize:12}}>
+              Nessuna allocazione questa settimana
+            </div>
+          ) : (
+            <table style={{width:'100%',borderCollapse:'collapse'}}>
+              <thead>
+                <tr style={{background:'#f8fafc'}}>
+                  <th style={{padding:'5px 14px',textAlign:'left',fontSize:10,color:'#64748b',fontWeight:600,borderBottom:'1px solid #e2e8f0'}}>Commessa</th>
+                  <th style={{padding:'5px 14px',textAlign:'left',fontSize:10,color:'#64748b',fontWeight:600,borderBottom:'1px solid #e2e8f0'}}>Ruolo</th>
+                  <th style={{padding:'5px 14px',textAlign:'left',fontSize:10,color:'#64748b',fontWeight:600,borderBottom:'1px solid #e2e8f0'}}>Giorno</th>
+                  <th style={{padding:'5px 14px',textAlign:'center',fontSize:10,color:'#64748b',fontWeight:600,borderBottom:'1px solid #e2e8f0'}}>Ore</th>
+                  <th style={{padding:'5px 14px',textAlign:'center',fontSize:10,color:'#64748b',fontWeight:600,borderBottom:'1px solid #e2e8f0'}}>Azioni</th>
+                </tr>
+              </thead>
+              <tbody>
+                {allocRis.map((a,i) => {
+                  const com = commesse.find(c=>c.id===a.com_id)
+                  const comCol = cCol(a.com_id)
+                  const giorni = ['Dom','Lun','Mar','Mer','Gio','Ven','Sab']
+                  const dow = giorni[new Date(a.data+'T00:00:00').getDay()]
+                  return (
+                    <tr key={a.id} style={{borderBottom:'1px solid #f1f5f9',background:i%2===0?'#fff':'#fafafa'}}>
+                      <td style={{padding:'5px 14px'}}>
+                        <div style={{display:'flex',alignItems:'center',gap:6}}>
+                          <span style={{width:8,height:8,borderRadius:2,background:comCol,flexShrink:0,display:'inline-block'}}/>
+                          <span style={{fontWeight:700,color:comCol,fontSize:11}}>{com?.cod||a.com_id}</span>
+                          <span style={{fontSize:10,color:'#94a3b8',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',maxWidth:120}}>{com?.tit?.slice(0,25)}</span>
+                        </div>
+                      </td>
+                      <td style={{padding:'5px 14px',fontSize:10,color:'#64748b'}}>{selectedRis.ruolo}</td>
+                      <td style={{padding:'5px 14px',fontSize:11,color:'#1e293b'}}>{dow} {disp(a.data)}</td>
+                      <td style={{padding:'5px 14px',textAlign:'center',fontSize:11,fontWeight:700,color:TEAL}}>{a.ore}h</td>
+                      <td style={{padding:'5px 14px',textAlign:'center'}}>
+                        <button onClick={async()=>{
+                          if(!window.confirm('Eliminare questa allocazione?'))return
+                          await axios.delete(`${API}/allocazioni/${a.id}`)
+                          setAllocazioni(p=>p.filter(x=>x.id!==a.id))
+                        }} style={{background:'none',border:'none',color:'#94a3b8',cursor:'pointer',fontSize:13,padding:'2px 6px',borderRadius:4}}
+                          onMouseEnter={e=>e.currentTarget.style.color='#ef4444'}
+                          onMouseLeave={e=>e.currentTarget.style.color='#94a3b8'}>🗑</button>
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          )}
+        </div>
+      </div>
+    )
+  })()}
+</div>
           </div>
         )}
 
