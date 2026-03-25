@@ -17,9 +17,8 @@ const monthS = s => new Date(s+"T00:00:00").toLocaleDateString("it-IT",{month:"s
 
 const ORE_OPTIONS = [0.5,1,1.5,2,2.5,3,3.5,4,4.5,5,5.5,6,6.5,7,7.5,8]
 
-export default function CalendarioRisorse({ currentBU, risorse, commesse, allocazioni, setAllocazioni, API }) {
+export default function CalendarioRisorse({ currentBU, risorse, commesse, allocazioni, setAllocazioni, API, layout, selectedCom, selectedRis, setSelectedRis }) {
   const [weekStart, setWeekStart] = useState(iso(monday(new Date())))
-  const [selectedRis, setSelectedRis] = useState(null)
   const [editCell, setEditCell] = useState(null)
   const [editOre, setEditOre] = useState(0)
   const [editCom, setEditCom] = useState('')
@@ -78,7 +77,7 @@ export default function CalendarioRisorse({ currentBU, risorse, commesse, alloca
   const commesseAttive = commesse.filter(c => c.stato === 'Attiva' || c.stato === 'Pianificata')
 
   return (
-    <div style={{fontFamily:'sans-serif'}}>
+    <div style={{fontFamily:'sans-serif', height:'100%', display:'flex', flexDirection:'column', overflow:'hidden', flex:1}}>
       {/* Navigazione settimana */}
       <div style={{display:'flex',alignItems:'center',gap:12,marginBottom:20}}>
         <button onClick={prevWeek} style={{padding:'6px 14px',borderRadius:7,border:'1px solid #e2e8f0',background:'#fff',cursor:'pointer',fontSize:14}}>‹</button>
@@ -90,7 +89,7 @@ export default function CalendarioRisorse({ currentBU, risorse, commesse, alloca
       </div>
 
       {/* Griglia calendario */}
-      <div style={{overflowX:'auto'}}>
+      <div style={{overflowX:'auto', flex:1, overflowY:'auto'}}>
         <table style={{borderCollapse:'collapse',width:'100%',minWidth:700}}>
           <thead>
             <tr>
