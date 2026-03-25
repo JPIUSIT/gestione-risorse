@@ -2,12 +2,12 @@ import { useState, useEffect } from 'react'
 import axios from 'axios'
 import CalendarioRisorse from './CalendarioRisorse'
 import NuovaCommessa from './NuovaCommessa'
-import Sottofasi from './Sottofasi'
 import DashboardScadenze from './DashboardScadenze'
 import ImportaSharePoint from './ImportaSharePoint'
 import KanbanCommesse from './KanbanCommesse'
 import RiepilogoRisorse from './RiepilogoRisorse'
 import Scadenziario from './Scadenziario'
+import GestioneRisorse from './GestioneRisorse'
 
 const TEAL = "#0d5c63"
 const TEAL2 = "#0a4a50"
@@ -101,41 +101,41 @@ export default function Shell({ currentBU, currentRole, onLogout, onGlobalLogout
     })
 
   const TABS = [
-  { id: 'dashboard',   label: '📊 Dashboard' },
-  { id: 'riepilogo',   label: '👥 Riepilogo Risorse' },
-  { id: 'commesse',    label: '📋 Gestione Commesse' },
-  { id: 'risorse_tab', label: '🔧 Gestione Risorse' },
-  { id: 'scadenziario',label: '📅 Scadenziario' },
-  ...(currentRole === 'Admin' ? [{ id: 'utenti', label: '⚙️ Utenti' }] : []),
+    { id: 'dashboard',   label: '📊 Dashboard' },
+    { id: 'riepilogo',   label: '👥 Riepilogo Risorse' },
+    { id: 'commesse',    label: '📋 Gestione Commesse' },
+    { id: 'risorse_tab', label: '🔧 Gestione Risorse' },
+    { id: 'scadenziario',label: '📅 Scadenziario' },
+    ...(currentRole === 'Admin' ? [{ id: 'utenti', label: '⚙️ Utenti' }] : []),
   ]
 
   return (
     <div style={{height:'100vh',display:'flex',flexDirection:'column',fontFamily:'sans-serif',background:'#f0f4f8'}}>
 
       {/* Header */}
-<div style={{background:TEAL,color:'#fff',padding:'0 16px',display:'flex',alignItems:'center',justifyContent:'space-between',height:44,flexShrink:0,zIndex:10}}>
-  <div style={{display:'flex',alignItems:'center',gap:10}}>
-    <span style={{fontWeight:700,fontSize:15,letterSpacing:0.5}}>J+S</span>
-    <span style={{color:'rgba(255,255,255,0.4)',fontSize:14}}>|</span>
-    <span style={{fontWeight:600,fontSize:13}}>Gestione Risorse BU</span>
-  </div>
-  <div style={{display:'flex',alignItems:'center',gap:12}}>
-    <div style={{display:'flex',alignItems:'center',gap:6,background:'rgba(255,255,255,0.12)',borderRadius:6,padding:'3px 10px'}}>
-      <span style={{fontSize:12,fontWeight:700}}>{currentBU?.codice || currentBU?.nome}</span>
-      <span style={{fontSize:11,color:'rgba(255,255,255,0.6)',cursor:'pointer'}} onClick={onLogout}>⇄</span>
-    </div>
-    <span style={{fontSize:12,color:'rgba(255,255,255,0.6)'}}>Ruolo:</span>
-    <span style={{fontSize:12,color:currentRole==='Coordinatore'?'#fff':'rgba(255,255,255,0.5)',fontWeight:currentRole==='Coordinatore'?700:400}}>✓ Coordinatore</span>
-    <span style={{fontSize:12,color:'rgba(255,255,255,0.3)'}}>|</span>
-    <span style={{fontSize:12,color:currentRole==='Membro'?'#fff':'rgba(255,255,255,0.5)'}}>Membro</span>
-    <div style={{width:1,height:20,background:'rgba(255,255,255,0.2)',margin:'0 4px'}}/>
-    <span style={{fontSize:12,color:'rgba(255,255,255,0.8)'}}>{user?.name || user?.username}</span>
-    <button onClick={onGlobalLogout}
-      style={{background:'rgba(255,255,255,0.15)',border:'none',color:'#fff',padding:'3px 10px',borderRadius:5,cursor:'pointer',fontSize:11}}>
-      Esci
-    </button>
-  </div>
-</div>
+      <div style={{background:TEAL,color:'#fff',padding:'0 16px',display:'flex',alignItems:'center',justifyContent:'space-between',height:44,flexShrink:0,zIndex:10}}>
+        <div style={{display:'flex',alignItems:'center',gap:10}}>
+          <span style={{fontWeight:700,fontSize:15,letterSpacing:0.5}}>J+S</span>
+          <span style={{color:'rgba(255,255,255,0.4)',fontSize:14}}>|</span>
+          <span style={{fontWeight:600,fontSize:13}}>Gestione Risorse BU</span>
+        </div>
+        <div style={{display:'flex',alignItems:'center',gap:12}}>
+          <div style={{display:'flex',alignItems:'center',gap:6,background:'rgba(255,255,255,0.12)',borderRadius:6,padding:'3px 10px',cursor:'pointer'}} onClick={onLogout}>
+            <span style={{fontSize:12,fontWeight:700}}>{currentBU?.codice || currentBU?.nome}</span>
+            <span style={{fontSize:11,color:'rgba(255,255,255,0.6)'}}>⇄</span>
+          </div>
+          <span style={{fontSize:12,color:'rgba(255,255,255,0.6)'}}>Ruolo:</span>
+          <span style={{fontSize:12,color:currentRole==='Coordinatore'?'#fff':'rgba(255,255,255,0.5)',fontWeight:currentRole==='Coordinatore'?700:400}}>✓ Coordinatore</span>
+          <span style={{fontSize:12,color:'rgba(255,255,255,0.3)'}}>|</span>
+          <span style={{fontSize:12,color:currentRole==='Membro'?'#fff':'rgba(255,255,255,0.5)'}}>Membro</span>
+          <div style={{width:1,height:20,background:'rgba(255,255,255,0.2)',margin:'0 4px'}}/>
+          <span style={{fontSize:12,color:'rgba(255,255,255,0.8)'}}>{user?.name || user?.username}</span>
+          <button onClick={onGlobalLogout}
+            style={{background:'rgba(255,255,255,0.15)',border:'none',color:'#fff',padding:'3px 10px',borderRadius:5,cursor:'pointer',fontSize:11}}>
+            Esci
+          </button>
+        </div>
+      </div>
 
       {/* Tab bar */}
       <div style={{background:TEAL2,display:'flex',gap:0,flexShrink:0,borderBottom:'2px solid rgba(255,255,255,0.1)'}}>
@@ -441,37 +441,23 @@ export default function Shell({ currentBU, currentRole, onLogout, onGlobalLogout
 
         {/* GESTIONE RISORSE */}
         {tab === 'risorse_tab' && (
-          <div style={{flex:1,overflow:'auto',padding:20}}>
-            <h2 style={{margin:'0 0 16px',color:'#1e293b',fontSize:18}}>Gestione Risorse</h2>
-            <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(240px,1fr))',gap:12}}>
-              {risorse.map(r => {
-                const col = cCol(r.id)
-                const rgb = `${parseInt(col.slice(1,3),16)},${parseInt(col.slice(3,5),16)},${parseInt(col.slice(5,7),16)}`
-                return (
-                  <div key={r.id} style={{background:'#fff',borderRadius:10,padding:'14px 16px',border:'1px solid #e2e8f0',display:'flex',alignItems:'center',gap:12}}>
-                    <div style={{width:40,height:40,borderRadius:'50%',background:`rgba(${rgb},0.15)`,border:`1.5px solid rgba(${rgb},0.5)`,display:'flex',alignItems:'center',justifyContent:'center',fontSize:13,fontWeight:700,color:col,flexShrink:0}}>
-                      {r.nome?.[0]}{r.cogn?.[0]}
-                    </div>
-                    <div>
-                      <div style={{fontWeight:600,color:'#1e293b',fontSize:13}}>{r.nome} {r.cogn}</div>
-                      <div style={{color:'#64748b',fontSize:11}}>{r.ruolo}</div>
-                      <div style={{color:'#94a3b8',fontSize:10}}>{r.email}</div>
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
-          </div>
+          <GestioneRisorse
+            currentBU={currentBU}
+            risorse={risorse}
+            setRisorse={setRisorse}
+            API={API}
+            currentRole={currentRole}
+          />
         )}
 
         {/* SCADENZIARIO */}
         {tab === 'scadenziario' && (
-  <Scadenziario
-    currentBU={currentBU}
-    commesse={commesse}
-    API={API}
-  />
-         )}
+          <Scadenziario
+            currentBU={currentBU}
+            commesse={commesse}
+            API={API}
+          />
+        )}
 
         {/* NUOVA COMMESSA */}
         {tab === 'nuova_commessa' && (
