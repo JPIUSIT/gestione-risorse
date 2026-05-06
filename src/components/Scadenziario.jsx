@@ -8,7 +8,6 @@ const AV_PAL = ["#ef4444","#3b82f6","#22c55e","#a855f7","#f59e0b","#06b6d4","#ec
 const cCol = id => { let h=0; for(let i=0;i<(id||"").length;i++) h=(h*31+id.charCodeAt(i))&0xffff; return AV_PAL[h%AV_PAL.length] }
 
 const iso = d => { const dt=new Date(d); return `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}-${String(dt.getDate()).padStart(2,'0')}` }
-const addD = (d,n) => { const dt=new Date(d); dt.setDate(dt.getDate()+n); return dt }
 const disp = s => { if(!s)return""; const[y,m,dd]=s.split("-"); return`${dd}/${m}/${y}` }
 const today = iso(new Date())
 
@@ -37,17 +36,53 @@ export default function Scadenziario({ currentBU, commesse, API }) {
   const [filtroStato, setFiltroStato] = useState('Tutti gli stati')
   const [viewMode, setViewMode] = useState('sett')
   const [tooltip, setTooltip] = useState(null)
-  const ganttRef = useRef(null)
+  const [showExport, setShowExport] = useState(false)
+  const exportRef = useRef(null)
 
   useEffect(() => {
     if (!currentBU) return
     axios.get(`${API}/sottofasi/${currentBU.id}`).then(r => setSottofasi(r.data)).catch(()=>{})
-    // Carica milestone per tutte le commesse
     Promise.all(commesse.map(c => axios.get(`${API}/milestones/${c.id}`).then(r=>r.data).catch(()=>[])))
       .then(results => setMilestones(results.flat()))
   }, [currentBU, commesse])
 
-  // Genera colonne timeline
+  // Chiudi menu export cliccando fuori
+  useEffect(() => {
+    const handler = (e) => { if (exportRef.current && !exportRef.current.contains(e.target)) setShowExport(false) }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [])
+
+  // Esporta CSV
+  const exportCSV = () => {
+    const rows = [['Commessa','Codice','Cliente','Sottofase/Milestone','Tipo','Stato','Scadenza','Giorni restanti']]
+    commesseFiltrate.forEach(com => {
+      const sfCom = sottofasi.filter(s => s.com_id === com.id)
+      const msCom = milestones.filter(m => m.com_id === com.id)
+      sfCom.forEach(sf => {
+        const dl = getDL(sf.scad)
+        rows.push([com.cod, com.tit||'', com.cli||'', sf.nome, 'Sottofase', sf.stato, disp(sf.scad), dl!==null?getDLLabel(dl):''])
+      })
+      msCom.forEach(ms => {
+        const dl = getDL(ms.scad)
+        rows.push([com.cod, com.tit||'', com.cli||'', ms.nome, 'Milestone', '', disp(ms.scad), dl!==null?getDLLabel(dl):''])
+      })
+    })
+    const csv = rows.map(r => r.map(v => `"${String(v).replace(/"/g,'""')}"`).join(';')).join('\n')
+    const blob = new Blob(['\uFEFF'+csv], {type:'text/csv;charset=utf-8'})
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url; a.download = `scadenziario_${today}.csv`; a.click()
+    URL.revokeObjectURL(url)
+    setShowExport(false)
+  }
+
+  // Esporta PDF (stampa browser)
+  const exportPDF = () => {
+    window.print()
+    setShowExport(false)
+  }
+
   const generateCols = () => {
     const startDate = new Date(today)
     startDate.setMonth(startDate.getMonth() - 1)
@@ -55,11 +90,9 @@ export default function Scadenziario({ currentBU, commesse, API }) {
     const endDate = new Date(today)
     endDate.setMonth(endDate.getMonth() + 5)
     endDate.setDate(1)
-
     const cols = []
     if (viewMode === 'sett') {
       let cur = new Date(startDate)
-      // Vai al lunedì più vicino
       const dow = cur.getDay()
       cur.setDate(cur.getDate() - (dow===0?6:dow-1))
       while (cur <= endDate) {
@@ -106,13 +139,11 @@ export default function Scadenziario({ currentBU, commesse, API }) {
     return true
   })
 
-  // Riepilogo scadenze
   const scadenzeAperte = sottofasi
     .filter(sf => sf.scad && sf.stato !== 'Completata')
     .map(sf => ({ sf, com: commesse.find(c=>c.id===sf.com_id), dl: getDL(sf.scad) }))
     .sort((a,b) => a.sf.scad > b.sf.scad ? 1 : -1)
 
-  // Criticità per mese
   const critByMonth = {}
   scadenzeAperte.forEach(({sf, com, dl}) => {
     const key = sf.scad.slice(0,7)
@@ -132,8 +163,32 @@ export default function Scadenziario({ currentBU, commesse, API }) {
         <span style={{fontWeight:700,fontSize:15,color:'#1e293b'}}>Scadenziario</span>
         <select value={filtroStato} onChange={e=>setFiltroStato(e.target.value)}
           style={{padding:'5px 10px',borderRadius:6,border:'1px solid #e2e8f0',fontSize:12,outline:'none',color:'#1e293b'}}>
-          {['Tutti gli stati','Pianificata','Attiva','In chiusura','Chiusa'].map(s=><option key={s}>{s}</option>)}
+          {['Tutti gli stati','Pianificata','Attiva','Chiusa'].map(s=><option key={s}>{s}</option>)}
         </select>
+
+        {/* Bottone Esporta */}
+        <div style={{position:'relative'}} ref={exportRef}>
+          <button onClick={()=>setShowExport(p=>!p)}
+            style={{padding:'5px 14px',borderRadius:6,border:`1px solid ${TEAL}`,background:'#fff',color:TEAL,fontWeight:600,cursor:'pointer',fontSize:12,display:'flex',alignItems:'center',gap:6}}>
+            ↗ Esporta
+          </button>
+          {showExport && (
+            <div style={{position:'absolute',top:'100%',left:0,marginTop:4,background:'#fff',borderRadius:8,boxShadow:'0 4px 20px rgba(0,0,0,0.15)',border:'1px solid #e2e8f0',zIndex:100,minWidth:160,overflow:'hidden'}}>
+              <button onClick={exportCSV}
+                style={{display:'block',width:'100%',textAlign:'left',padding:'10px 14px',border:'none',background:'none',cursor:'pointer',fontSize:12,color:'#1e293b',borderBottom:'1px solid #f1f5f9'}}
+                onMouseEnter={e=>e.currentTarget.style.background='#f8fafc'}
+                onMouseLeave={e=>e.currentTarget.style.background='none'}>
+                📊 Esporta CSV (Excel)
+              </button>
+              <button onClick={exportPDF}
+                style={{display:'block',width:'100%',textAlign:'left',padding:'10px 14px',border:'none',background:'none',cursor:'pointer',fontSize:12,color:'#1e293b'}}
+                onMouseEnter={e=>e.currentTarget.style.background='#f8fafc'}
+                onMouseLeave={e=>e.currentTarget.style.background='none'}>
+                🖨️ Stampa / PDF
+              </button>
+            </div>
+          )}
+        </div>
 
         {/* Legenda */}
         <div style={{display:'flex',alignItems:'center',gap:12,marginLeft:'auto',fontSize:11,color:'#64748b'}}>
@@ -141,6 +196,7 @@ export default function Scadenziario({ currentBU, commesse, API }) {
           <span style={{display:'flex',alignItems:'center',gap:4}}><span style={{color:'#f59e0b',fontSize:14}}>◆</span> In attesa</span>
           <span style={{display:'flex',alignItems:'center',gap:4}}><span style={{color:'#06b6d4',fontSize:14}}>◆</span> In corso</span>
           <span style={{display:'flex',alignItems:'center',gap:4}}><span style={{color:'#22c55e',fontSize:14}}>◆</span> Completata</span>
+          <span style={{display:'flex',alignItems:'center',gap:4}}><span style={{color:'#94a3b8',fontSize:14}}>◆</span> Sospesa</span>
           <span style={{display:'flex',alignItems:'center',gap:4}}><span style={{color:'#7c3aed',fontSize:14}}>★</span> Milestone</span>
           <div style={{display:'flex',border:'1px solid #e2e8f0',borderRadius:5,overflow:'hidden'}}>
             {[['sett','Sett.'],['mese','Mese']].map(([v,l]) => (
@@ -154,14 +210,13 @@ export default function Scadenziario({ currentBU, commesse, API }) {
       </div>
 
       {/* Gantt */}
-      <div ref={ganttRef} style={{flex:1,overflow:'auto',minHeight:0}}>
+      <div style={{flex:1,overflow:'auto',minHeight:0}}>
         <table style={{borderCollapse:'collapse',tableLayout:'fixed'}}>
           <colgroup>
             <col style={{width:LEFT_W}}/>
             {cols.map(c => <col key={c.key} style={{width:COL_W}}/>)}
           </colgroup>
           <thead style={{position:'sticky',top:0,zIndex:3,background:'#fff'}}>
-            {/* Riga mesi (solo in vista settimana) */}
             {viewMode==='sett' && (
               <tr>
                 <th style={{padding:'4px 10px',textAlign:'left',fontSize:11,color:'#64748b',fontWeight:600,borderBottom:'1px solid #e2e8f0',borderRight:'2px solid #e2e8f0',background:'#f8fafc'}}>
@@ -215,7 +270,6 @@ export default function Scadenziario({ currentBU, commesse, API }) {
               const msCom = milestones.filter(m => m.com_id === com.id)
               const statoCol = SC[com.stato] || '#94a3b8'
               return [
-                // Riga commessa
                 <tr key={`com-${com.id}`} style={{background:ci%2===0?'#fff':'#fafafa'}}>
                   <td style={{padding:'6px 10px',borderBottom:'1px solid #f1f5f9',borderRight:'2px solid #e2e8f0',position:'sticky',left:0,background:ci%2===0?'#fff':'#fafafa',zIndex:1}}>
                     <div style={{display:'flex',alignItems:'center',gap:6}}>
@@ -229,7 +283,6 @@ export default function Scadenziario({ currentBU, commesse, API }) {
                     <td key={c.key} style={{borderBottom:'1px solid #f1f5f9',borderLeft:'1px solid #f1f5f9',background:i===todayColIdx?'#f0f9fa':''}}/>
                   ))}
                 </tr>,
-                // Righe sottofasi
                 ...sfCom.map(sf => {
                   const sfCol = SF_COL[sf.stato] || '#94a3b8'
                   const colIdx = getColIdx(sf.scad)
@@ -251,7 +304,7 @@ export default function Scadenziario({ currentBU, commesse, API }) {
                               onMouseEnter={e=>setTooltip({text:`${sf.nome}: ${disp(sf.scad)} (${getDLLabel(dl)})`,x:e.clientX,y:e.clientY})}
                               onMouseLeave={()=>setTooltip(null)}
                               style={{display:'inline-flex',alignItems:'center',justifyContent:'center',cursor:'default'}}>
-                              <span style={{color:dlCol,fontSize:16,lineHeight:1}}>◆</span>
+                              <span style={{color:sfCol,fontSize:16,lineHeight:1}}>◆</span>
                             </div>
                           )}
                         </td>
@@ -259,7 +312,6 @@ export default function Scadenziario({ currentBU, commesse, API }) {
                     </tr>
                   )
                 }),
-                // Righe milestone
                 ...msCom.map(ms => {
                   const colIdx = getColIdx(ms.scad)
                   const dl = getDL(ms.scad)
@@ -352,7 +404,6 @@ export default function Scadenziario({ currentBU, commesse, API }) {
           )}
         </div>
 
-        {/* Criticità per mese */}
         {Object.keys(critByMonth).length > 0 && (
           <div style={{borderTop:'1px solid #e2e8f0',flexShrink:0}}>
             <div style={{padding:'5px 14px',background:'#fef9ec',display:'flex',alignItems:'center',gap:6}}>

@@ -53,7 +53,12 @@ export default function RiepilogoRisorse({ risorse, commesse, allocazioni, curre
     ? `${dispFull(giorni[0])} – ${dispFull(giorni[giorni.length-1])}`
     : monthName(monthStart)
 
-  const categorie = [...new Set(risorse.map(r=>r.cat_id).filter(Boolean))]
+  const [categorieLista, setCategorieLista] = useState([])
+
+useEffect(() => {
+  if (!currentBU) return
+  axios.get(`${API}/categorie/${currentBU.id}`).then(r => setCategorieLista(r.data)).catch(()=>{})
+}, [currentBU])
 
   const risorseFiltrate = risorse.filter(r => {
     if (cercaRis && !`${r.nome} ${r.cogn}`.toLowerCase().includes(cercaRis.toLowerCase()) && !r.ruolo?.toLowerCase().includes(cercaRis.toLowerCase())) return false
@@ -84,10 +89,10 @@ export default function RiepilogoRisorse({ risorse, commesse, allocazioni, curre
         </div>
 
         <select value={filtroCategoria} onChange={e=>setFiltroCategoria(e.target.value)}
-          style={{padding:'5px 8px',borderRadius:6,border:'1px solid #e2e8f0',fontSize:12,outline:'none',color:'#1e293b'}}>
-          <option value="">Tutte le categorie</option>
-          {categorie.map(c=><option key={c} value={c}>{c.toUpperCase()}</option>)}
-        </select>
+  style={{padding:'5px 8px',borderRadius:6,border:'1px solid #e2e8f0',fontSize:12,outline:'none',color:'#1e293b'}}>
+  <option value="">Tutte le categorie</option>
+  {categorieLista.map(c=><option key={c.id} value={c.id}>{c.nome}</option>)}
+</select>
 
         <select value={filtroCommessa} onChange={e=>setFiltroCommessa(e.target.value)}
           style={{padding:'5px 8px',borderRadius:6,border:'1px solid #e2e8f0',fontSize:12,outline:'none',color:'#1e293b',maxWidth:200}}>
