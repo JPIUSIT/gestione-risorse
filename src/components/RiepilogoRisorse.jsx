@@ -1,4 +1,5 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
+import axios from 'axios'
 
 const TEAL = "#0d5c63"
 const AV_PAL = ["#ef4444","#3b82f6","#22c55e","#a855f7","#f59e0b","#06b6d4","#ec4899","#84cc16","#f97316","#6366f1","#14b8a6","#e11d48"]
@@ -18,6 +19,12 @@ export default function RiepilogoRisorse({ risorse, commesse, allocazioni, curre
   const [cercaRis, setCercaRis] = useState('')
   const [filtroCategoria, setFiltroCategoria] = useState('')
   const [filtroCommessa, setFiltroCommessa] = useState('')
+  const [categorieLista, setCategorieLista] = useState([])
+
+  useEffect(() => {
+    if (!currentBU) return
+    axios.get(`${API}/categorie/${currentBU.id}`).then(r => setCategorieLista(r.data)).catch(()=>{})
+  }, [currentBU])
 
   const giorni = useMemo(() => {
     if (viewMode === 'settimana') {
@@ -53,13 +60,6 @@ export default function RiepilogoRisorse({ risorse, commesse, allocazioni, curre
     ? `${dispFull(giorni[0])} – ${dispFull(giorni[giorni.length-1])}`
     : monthName(monthStart)
 
-  const [categorieLista, setCategorieLista] = useState([])
-
-useEffect(() => {
-  if (!currentBU) return
-  axios.get(`${API}/categorie/${currentBU.id}`).then(r => setCategorieLista(r.data)).catch(()=>{})
-}, [currentBU])
-
   const risorseFiltrate = risorse.filter(r => {
     if (cercaRis && !`${r.nome} ${r.cogn}`.toLowerCase().includes(cercaRis.toLowerCase()) && !r.ruolo?.toLowerCase().includes(cercaRis.toLowerCase())) return false
     if (filtroCategoria && r.cat_id !== filtroCategoria) return false
@@ -80,8 +80,6 @@ useEffect(() => {
 
       {/* Toolbar */}
       <div style={{padding:'8px 16px',background:'#fff',borderBottom:'1px solid #e2e8f0',display:'flex',alignItems:'center',gap:10,flexShrink:0,flexWrap:'wrap'}}>
-
-        {/* FILTRI — a sinistra */}
         <div style={{position:'relative'}}>
           <span style={{position:'absolute',left:7,top:'50%',transform:'translateY(-50%)',fontSize:11,color:'#94a3b8'}}>🔍</span>
           <input value={cercaRis} onChange={e=>setCercaRis(e.target.value)} placeholder="Cerca risorsa..."
@@ -89,10 +87,10 @@ useEffect(() => {
         </div>
 
         <select value={filtroCategoria} onChange={e=>setFiltroCategoria(e.target.value)}
-  style={{padding:'5px 8px',borderRadius:6,border:'1px solid #e2e8f0',fontSize:12,outline:'none',color:'#1e293b'}}>
-  <option value="">Tutte le categorie</option>
-  {categorieLista.map(c=><option key={c.id} value={c.id}>{c.nome}</option>)}
-</select>
+          style={{padding:'5px 8px',borderRadius:6,border:'1px solid #e2e8f0',fontSize:12,outline:'none',color:'#1e293b'}}>
+          <option value="">Tutte le categorie</option>
+          {categorieLista.map(c=><option key={c.id} value={c.id}>{c.nome}</option>)}
+        </select>
 
         <select value={filtroCommessa} onChange={e=>setFiltroCommessa(e.target.value)}
           style={{padding:'5px 8px',borderRadius:6,border:'1px solid #e2e8f0',fontSize:12,outline:'none',color:'#1e293b',maxWidth:200}}>
@@ -102,7 +100,6 @@ useEffect(() => {
 
         <div style={{width:1,height:20,background:'#e2e8f0',margin:'0 4px'}}/>
 
-        {/* VISTA + NAVIGAZIONE — a destra dei filtri */}
         <div style={{display:'flex',border:'1px solid #e2e8f0',borderRadius:6,overflow:'hidden'}}>
           {['settimana','mese'].map(v => (
             <button key={v} onClick={()=>setViewMode(v)}
