@@ -14,6 +14,12 @@ router.post('/', (req, res) => {
   res.json({ id, bu_id, nome, ord });
 });
 
+router.put('/:id', (req, res) => {
+  const { nome } = req.body;
+  db.prepare('UPDATE categorie SET nome=? WHERE id=?').run(nome, req.params.id);
+  res.json({ id: req.params.id, nome });
+});
+
 router.delete('/:id', (req, res) => {
   db.prepare('DELETE FROM categorie WHERE id=?').run(req.params.id);
   res.json({ ok: true });

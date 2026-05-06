@@ -27,6 +27,8 @@ export default function Shell({ currentBU, currentRole, onLogout, onGlobalLogout
   const [filtroCliente, setFiltroCliente] = useState('')
   const [filtroStato, setFiltroStato] = useState('')
   const [cercaRis, setCercaRis] = useState('')
+  const [openAllocaRis, setOpenAllocaRis] = useState(null)
+  const [showInfo, setShowInfo] = useState(false)
   const [utenti, setUtenti] = useState([])
   const [buList, setBuList] = useState([])
   const [nuovaEmail, setNuovaEmail] = useState('')
@@ -115,7 +117,7 @@ export default function Shell({ currentBU, currentRole, onLogout, onGlobalLogout
       {/* Header */}
       <div style={{background:TEAL,color:'#fff',padding:'0 16px',display:'flex',alignItems:'center',justifyContent:'space-between',height:44,flexShrink:0,zIndex:10}}>
         <div style={{display:'flex',alignItems:'center',gap:10}}>
-          <span style={{fontWeight:700,fontSize:15,letterSpacing:0.5}}>J+S</span>
+          <span onClick={()=>setShowInfo(true)} style={{fontWeight:700,fontSize:15,letterSpacing:0.5,cursor:'pointer'}} title="Info applicazione">J+S</span>
           <span style={{color:'rgba(255,255,255,0.4)',fontSize:14}}>|</span>
           <span style={{fontWeight:600,fontSize:13}}>Gestione Risorse BU</span>
         </div>
@@ -171,7 +173,7 @@ export default function Shell({ currentBU, currentRole, onLogout, onGlobalLogout
                 <select value={filtroStato} onChange={e=>setFiltroStato(e.target.value)}
                   style={{width:'100%',border:'1px solid #e2e8f0',borderRadius:6,padding:'4px 8px',fontSize:11,outline:'none',color:'#1e293b'}}>
                   <option value="">Tutti gli stati</option>
-                  {['Pianificata','Attiva','In chiusura','Chiusa'].map(s=><option key={s} value={s}>{s}</option>)}
+                  {['Pianificata','Attiva','Chiusa'].map(s=><option key={s} value={s}>{s}</option>)}
                 </select>
               </div>
               <div style={{flex:1,overflowY:'auto'}}>
@@ -239,7 +241,7 @@ export default function Shell({ currentBU, currentRole, onLogout, onGlobalLogout
                           {oreSettimana > 0 && (
                             <span style={{fontSize:10,fontWeight:700,color:TEAL,background:'#e0f2f1',borderRadius:4,padding:'1px 5px',flexShrink:0}}>{oreSettimana}h</span>
                           )}
-                          <button onClick={e=>{ e.stopPropagation(); setSelectedRis(r) }}
+                          <button onClick={e=>{ e.stopPropagation(); setSelectedRis(r); setOpenAllocaRis(r) }}
                             style={{width:20,height:20,borderRadius:'50%',border:`1px solid ${col}`,background:'#fff',color:col,fontSize:13,display:'flex',alignItems:'center',justifyContent:'center',cursor:'pointer',flexShrink:0,lineHeight:1}}>+</button>
                         </div>
                       )
@@ -260,6 +262,8 @@ export default function Shell({ currentBU, currentRole, onLogout, onGlobalLogout
                 selectedCom={selectedCom}
                 selectedRis={selectedRis}
                 setSelectedRis={setSelectedRis}
+                openAllocaRis={openAllocaRis}
+                setOpenAllocaRis={setOpenAllocaRis}
                 API={API}
                 layout="embedded"
               />
@@ -536,6 +540,46 @@ export default function Shell({ currentBU, currentRole, onLogout, onGlobalLogout
         )}
 
       </div>
+
+      {/* Modal Info / Firma */}
+      {showInfo && (
+        <div style={{position:'fixed',top:0,left:0,right:0,bottom:0,background:'rgba(0,0,0,0.5)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:9999}}
+          onClick={()=>setShowInfo(false)}>
+          <div style={{background:'#fff',borderRadius:12,width:420,boxShadow:'0 20px 60px rgba(0,0,0,0.3)',overflow:'hidden'}}
+            onClick={e=>e.stopPropagation()}>
+            <div style={{background:TEAL,padding:'16px 20px',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+              <span style={{fontWeight:700,fontSize:16,color:'#fff'}}>Gestione Risorse BU</span>
+              <button onClick={()=>setShowInfo(false)} style={{background:'none',border:'none',color:'#fff',fontSize:20,cursor:'pointer'}}>×</button>
+            </div>
+            <div style={{padding:'20px'}}>
+              <div style={{marginBottom:16,paddingBottom:16,borderBottom:'1px solid #e2e8f0'}}>
+                <div style={{fontSize:11,color:'#94a3b8',marginBottom:2}}>Versione</div>
+                <div style={{fontWeight:600,color:'#1e293b'}}>v1.0 — Build 2026</div>
+              </div>
+              <div style={{marginBottom:16,paddingBottom:16,borderBottom:'1px solid #e2e8f0'}}>
+                <div style={{fontSize:11,color:'#94a3b8',marginBottom:2}}>Sviluppato da</div>
+                <div style={{fontWeight:700,fontSize:15,color:TEAL}}>Giuseppe Polito</div>
+                <div style={{fontSize:12,color:'#64748b',marginTop:2}}>C.F. PLTGPP93C31F704L</div>
+              </div>
+              <div style={{marginBottom:16,paddingBottom:16,borderBottom:'1px solid #e2e8f0'}}>
+                <div style={{fontSize:11,color:'#94a3b8',marginBottom:2}}>Anno di sviluppo</div>
+                <div style={{fontWeight:600,color:'#1e293b'}}>2025 – 2026</div>
+              </div>
+              <div style={{marginBottom:16,paddingBottom:16,borderBottom:'1px solid #e2e8f0'}}>
+                <div style={{fontSize:11,color:'#94a3b8',marginBottom:2}}>Repository</div>
+                <a href="https://github.com/JPIUSIT/gestione-risorse" target="_blank" rel="noreferrer"
+                  style={{color:TEAL,fontSize:12,textDecoration:'none',fontWeight:600}}>
+                  github.com/JPIUSIT/gestione-risorse ↗
+                </a>
+              </div>
+              <div style={{background:'#f8fafc',borderRadius:8,padding:'10px 14px',fontSize:11,color:'#64748b',lineHeight:1.5}}>
+                © Tutti i diritti riservati. Qualsiasi utilizzo, copia o distribuzione non autorizzata è vietata.
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   )
 }

@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import axios from 'axios'
 
 const TEAL = "#0d5c63"
@@ -17,7 +17,7 @@ const dayNum = s => new Date(s+"T00:00:00").getDate()
 const monthS = s => new Date(s+"T00:00:00").toLocaleDateString("it-IT",{month:"short"})
 const monthFull = s => new Date(s+"T00:00:00").toLocaleDateString("it-IT",{month:"long",year:"numeric"})
 
-export default function CalendarioRisorse({ currentBU, risorse, commesse, allocazioni, setAllocazioni, API, layout, selectedCom, selectedRis, setSelectedRis }) {
+export default function CalendarioRisorse({ currentBU, risorse, commesse, allocazioni, setAllocazioni, API, layout, selectedCom, selectedRis, setSelectedRis, openAllocaRis, setOpenAllocaRis }) {
   const [weekStart, setWeekStart] = useState(iso(monday(new Date())))
   const [monthStart, setMonthStart] = useState(iso(new Date(new Date().getFullYear(), new Date().getMonth(), 1)))
   const [calView, setCalView] = useState('sett')
@@ -34,9 +34,11 @@ export default function CalendarioRisorse({ currentBU, risorse, commesse, alloca
   const [saving, setSaving] = useState(false)
   const [sottofasi, setSottofasi] = useState([])
 
+  const today = iso(new Date())
+
   const weekDays = useMemo(() => {
     if (calView === 'sett') {
-      return Array.from({length:6}, (_,i) => iso(addD(weekStart, i)))
+      return Array.from({length:5}, (_,i) => iso(addD(weekStart, i)))
     } else {
       const start = new Date(monthStart+'T00:00:00')
       const year = start.getFullYear()
@@ -50,8 +52,6 @@ export default function CalendarioRisorse({ currentBU, risorse, commesse, alloca
       }).filter(Boolean)
     }
   }, [calView, weekStart, monthStart])
-
-  const today = iso(new Date())
 
   const prevPeriod = () => {
     if (calView==='sett') setWeekStart(iso(addD(weekStart,-7)))
@@ -97,6 +97,14 @@ export default function CalendarioRisorse({ currentBU, risorse, commesse, alloca
     setShowModal(true)
   }
 
+  // Apri modal quando arriva openAllocaRis da Shell
+  useEffect(() => {
+    if (openAllocaRis) {
+      openModal(openAllocaRis, today)
+      setOpenAllocaRis(null)
+    }
+  }, [openAllocaRis])
+
   const handleComChange = (comId) => {
     setFComId(comId)
     setFSfId('')
@@ -105,6 +113,10 @@ export default function CalendarioRisorse({ currentBU, risorse, commesse, alloca
 
   const handleSalva = async () => {
     if (!fRisId || !fComId || !fDa) return
+    // Alert se ore > 8
+    if (fOre > 8) {
+      if (!window.confirm(`Attenzione: stai inserendo ${fOre}h per un singolo giorno. Continuare?`)) return
+    }
     setSaving(true)
     try {
       const existing = getAlloc(fRisId, modalData.data)
@@ -146,7 +158,6 @@ export default function CalendarioRisorse({ currentBU, risorse, commesse, alloca
 
   const commesseAttive = commesse.filter(c => c.stato==='Attiva'||c.stato==='Pianificata')
 
-  // Risorse da mostrare in base alla selezione
   const risorseDamostrare = useMemo(() => {
     if (selectedRis) return risorse.filter(r => r.id === selectedRis.id)
     if (selectedCom) {
@@ -154,8 +165,15 @@ export default function CalendarioRisorse({ currentBU, risorse, commesse, alloca
       if (risConAlloc.size > 0) return risorse.filter(r => risConAlloc.has(r.id))
       return []
     }
-    return risorse
+    return []
   }, [selectedRis, selectedCom, risorse, allocazioni])
+
+  // Trova nome sottofase
+  const getSfNome = (sfId) => {
+    if (!sfId) return null
+    const sf = sottofasi.find(s => s.id === sfId)
+    return sf?.nome || null
+  }
 
   return (
     <div style={{height:'100%',display:'flex',flexDirection:'column',overflow:'hidden',flex:1}}>
@@ -223,7 +241,7 @@ export default function CalendarioRisorse({ currentBU, risorse, commesse, alloca
               <tr>
                 <th style={{width:160,padding:'6px 12px',textAlign:'left',fontSize:11,color:'#64748b',fontWeight:600,borderBottom:'2px solid #e2e8f0',background:'#fff'}}></th>
                 {weekDays.map(d => (
-                  <th key={d} style={{padding:'4px',textAlign:'center',fontSize:11,color:d===today?TEAL:'#64748b',fontWeight:d===today?700:500,borderBottom:'2px solid #e2e8f0',minWidth:calView==='mese'?36:90,background:d===today?'#f0f9fa':'#fff'}}>
+                  <th key={d} style={{padding:'4px',textAlign:'center',fontSize:11,color:d===today?TEAL:'#64748b',fontWeight:d===today?700:500,borderBottom:'2px solid #e2e8f0',minWidth:calView==='mese'?36:90,background:d===today?'#f0f9fa':'#fff',borderLeft:'1px solid #e2e8f0'}}>
                     <div style={{fontWeight:700,fontSize:calView==='mese'?10:13}}>{dayL(d)}</div>
                     <div style={{fontSize:9}}>{dayNum(d)} {calView==='sett'?monthS(d):''}</div>
                   </th>
@@ -233,7 +251,7 @@ export default function CalendarioRisorse({ currentBU, risorse, commesse, alloca
             <tbody>
               {risorseDamostrare.map((ris,ri) => (
                 <tr key={ris.id} style={{background:ri%2===0?'#fff':'#fafafa'}}>
-                  <td style={{padding:'6px 12px',borderBottom:'1px solid #f1f5f9'}}>
+                  <td style={{padding:'6px 12px',borderBottom:'1px solid #f1f5f9',borderRight:'1px solid #e2e8f0'}}>
                     <div style={{display:'flex',alignItems:'center',gap:6}}>
                       <div style={{width:26,height:26,borderRadius:'50%',background:li(cCol(ris.id),0.18),border:`1.5px solid ${li(cCol(ris.id),0.6)}`,display:'flex',alignItems:'center',justifyContent:'center',fontWeight:700,fontSize:9,color:cCol(ris.id),flexShrink:0}}>
                         {ris.nome?.[0]}{ris.cogn?.[0]}
@@ -248,20 +266,24 @@ export default function CalendarioRisorse({ currentBU, risorse, commesse, alloca
                     const allocs = getAlloc(ris.id, d)
                     const tot = getTotOre(ris.id, d)
                     const col = allocs[0] ? cCol(allocs[0].com_id) : null
-                    const isWeekend = [0,6].includes(new Date(d+'T00:00:00').getDay())
                     const isToday = d===today
                     return (
-                      <td key={d} onClick={() => !isWeekend && openModal(ris,d)}
-                        style={{padding:'2px',borderBottom:'1px solid #f1f5f9',textAlign:'center',cursor:isWeekend?'default':'pointer',background:isWeekend?'#f8fafc':isToday?'#f0f9fa':'',verticalAlign:'middle',minWidth:calView==='mese'?36:90}}>
-                        {isWeekend ? (
-                          <span style={{fontSize:10,color:'#e2e8f0'}}>—</span>
-                        ) : allocs.length > 0 ? (
+                      <td key={d} onClick={() => openModal(ris,d)}
+                        style={{padding:'2px',borderBottom:'1px solid #f1f5f9',borderLeft:'1px solid #e2e8f0',textAlign:'center',cursor:'pointer',background:isToday?'#f0f9fa':'',verticalAlign:'middle',minWidth:calView==='mese'?36:90}}>
+                        {allocs.length > 0 ? (
                           <div style={{background:li(col,0.15),border:`1px solid ${li(col,0.35)}`,borderRadius:4,padding:calView==='mese'?'2px 1px':'3px 5px',display:'inline-block',minWidth:calView==='mese'?28:60}}>
                             <div style={{fontSize:calView==='mese'?9:11,fontWeight:700,color:col}}>{tot}h</div>
                             {calView==='sett' && (
-                              <div style={{fontSize:9,color:col,opacity:0.8,maxWidth:80,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>
-                                {commesse.find(c=>c.id===allocs[0].com_id)?.cod||''}
-                              </div>
+                              <>
+                                <div style={{fontSize:9,color:col,opacity:0.8,maxWidth:80,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>
+                                  {commesse.find(c=>c.id===allocs[0].com_id)?.cod||''}
+                                </div>
+                                {allocs[0].sf_id && (
+                                  <div style={{fontSize:8,color:col,opacity:0.6,maxWidth:80,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>
+                                    {sottofasi.find(s=>s.id===allocs[0].sf_id)?.nome||''}
+                                  </div>
+                                )}
+                              </>
                             )}
                           </div>
                         ) : (

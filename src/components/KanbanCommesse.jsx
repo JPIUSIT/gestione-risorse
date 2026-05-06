@@ -1,15 +1,15 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import axios from 'axios'
 
 const TEAL = "#0d5c63"
-const STATI = ['Pianificata', 'Attiva', 'In chiusura', 'Chiusa']
+const STATI = ['Pianificata', 'Attiva', 'Chiusa']
 const STATO_COLORS = {
-  Pianificata:   { bg:'#eff6ff', border:'#bfdbfe', text:'#1d4ed8', header:'#3b82f6' },
-  Attiva:        { bg:'#f0fdf4', border:'#bbf7d0', text:'#15803d', header:'#22c55e' },
-  'In chiusura': { bg:'#fff7ed', border:'#fed7aa', text:'#c2410c', header:'#f97316' },
-  Chiusa:        { bg:'#f8fafc', border:'#e2e8f0', text:'#475569', header:'#94a3b8' },
+  Pianificata: { bg:'#eff6ff', border:'#bfdbfe', text:'#1d4ed8', header:'#3b82f6' },
+  Attiva:      { bg:'#f0fdf4', border:'#bbf7d0', text:'#15803d', header:'#22c55e' },
+  Chiusa:      { bg:'#f8fafc', border:'#e2e8f0', text:'#475569', header:'#94a3b8' },
 }
 const STATI_SF = ['In attesa', 'In corso', 'Completata', 'Sospesa']
+const disp = s => { if(!s)return""; const[y,m,dd]=s.split("-"); return`${dd}/${m}/${y}` }
 
 export default function KanbanCommesse({ currentBU, commesse, setCommesse, currentRole, API }) {
   const [dragging, setDragging] = useState(null)
@@ -23,6 +23,10 @@ export default function KanbanCommesse({ currentBU, commesse, setCommesse, curre
   const [newSf, setNewSf] = useState({ nome:'', scad:'', stato:'In attesa' })
   const [newMs, setNewMs] = useState({ nome:'', scad:'' })
   const [savingSf, setSavingSf] = useState(false)
+  const [editSfId, setEditSfId] = useState(null)
+  const [editSfData, setEditSfData] = useState({})
+  const [editMsId, setEditMsId] = useState(null)
+  const [editMsData, setEditMsData] = useState({})
 
   const canEdit = currentRole === 'Admin' || currentRole === 'Coordinatore'
 
@@ -77,6 +81,8 @@ export default function KanbanCommesse({ currentBU, commesse, setCommesse, curre
     setMilestones([])
     setNewSf({ nome:'', scad:'', stato:'In attesa' })
     setNewMs({ nome:'', scad:'' })
+    setEditSfId(null)
+    setEditMsId(null)
     loadSottofasi(com.id)
     loadMilestones(com.id)
     setShowModal(true)
@@ -127,6 +133,12 @@ export default function KanbanCommesse({ currentBU, commesse, setCommesse, curre
     setSavingSf(false)
   }
 
+  const handleSaveSf = async (sf) => {
+    await axios.put(`${API}/sottofasi/${sf.id}`, editSfData)
+    setSottofasi(p => p.map(s => s.id===sf.id ? {...s, ...editSfData} : s))
+    setEditSfId(null)
+  }
+
   const handleDeleteSf = async (id) => {
     await axios.delete(`${API}/sottofasi/${id}`)
     setSottofasi(p => p.filter(s => s.id !== id))
@@ -146,12 +158,16 @@ export default function KanbanCommesse({ currentBU, commesse, setCommesse, curre
     } catch(e) { console.error(e) }
   }
 
+  const handleSaveMs = async (ms) => {
+    await axios.put(`${API}/milestones/${ms.id}`, editMsData)
+    setMilestones(p => p.map(m => m.id===ms.id ? {...m, ...editMsData} : m))
+    setEditMsId(null)
+  }
+
   const handleDeleteMs = async (id) => {
     await axios.delete(`${API}/milestones/${id}`)
     setMilestones(p => p.filter(m => m.id !== id))
   }
-
-  const disp = s => { if(!s)return""; const[y,m,d]=s.split("-"); return`${d}/${m}/${y}` }
 
   return (
     <div style={{flex:1,height:'100%',display:'flex',flexDirection:'column',overflow:'hidden'}}>
@@ -194,7 +210,7 @@ export default function KanbanCommesse({ currentBU, commesse, setCommesse, curre
                     draggable={canEdit}
                     onDragStart={e => handleDragStart(e, c)}
                     onClick={() => openModal(c)}
-                    style={{background:'#fff',borderRadius:8,padding:'10px 12px',border:`1px solid ${sc.border}`,cursor:canEdit?'grab':'pointer',boxShadow:'0 1px 3px rgba(0,0,0,0.06)',opacity:dragging?.id===c.id?0.5:1}}>
+                    style={{background:'#fff',borderRadius:8,padding:'10px 12px',border:`1px solid ${sc.border}`,cursor:'pointer',boxShadow:'0 1px 3px rgba(0,0,0,0.06)',opacity:dragging?.id===c.id?0.5:1}}>
                     <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:5}}>
                       <span style={{fontWeight:700,fontSize:11,color:TEAL}}>{c.cod}</span>
                       {c.src==='SharePoint' && (
@@ -228,7 +244,6 @@ export default function KanbanCommesse({ currentBU, commesse, setCommesse, curre
             </div>
 
             <div style={{flex:1,overflowY:'auto',padding:'16px'}}>
-              {/* Cliente e stato */}
               <div style={{color:'#64748b',fontSize:12,marginBottom:12}}>{selectedCom.cli}</div>
               <div style={{marginBottom:16}}>
                 <label style={{fontSize:11,fontWeight:600,color:'#64748b',display:'block',marginBottom:3}}>Stato</label>
@@ -250,18 +265,48 @@ export default function KanbanCommesse({ currentBU, commesse, setCommesse, curre
                 )}
                 {sottofasi.map(sf => {
                   const scCol = {Completata:'#22c55e','In corso':'#3b82f6','In attesa':'#f59e0b',Sospesa:'#94a3b8'}[sf.stato]||'#94a3b8'
+                  const isEditing = editSfId === sf.id
                   return (
-                    <div key={sf.id} style={{display:'flex',alignItems:'center',gap:8,padding:'6px 10px',background:'#f8fafc',borderRadius:7,marginBottom:4,border:'1px solid #e2e8f0'}}>
-                      <div style={{flex:1}}>
-                        <span style={{fontSize:12,fontWeight:600,color:'#1e293b'}}>{sf.nome}</span>
-                        {sf.scad && <span style={{fontSize:10,color:'#94a3b8',marginLeft:8}}>{disp(sf.scad)}</span>}
-                      </div>
-                      <span style={{fontSize:10,padding:'1px 6px',borderRadius:4,background:scCol+'20',color:scCol,fontWeight:600}}>{sf.stato}</span>
-                      {canEdit && (
-                        <button onClick={()=>handleDeleteSf(sf.id)}
-                          style={{background:'none',border:'none',color:'#94a3b8',cursor:'pointer',fontSize:12,padding:'2px 4px'}}
-                          onMouseEnter={e=>e.currentTarget.style.color='#ef4444'}
-                          onMouseLeave={e=>e.currentTarget.style.color='#94a3b8'}>🗑</button>
+                    <div key={sf.id} style={{padding:'8px 10px',background:'#f8fafc',borderRadius:7,marginBottom:4,border:'1px solid #e2e8f0'}}>
+                      {isEditing ? (
+                        <div style={{display:'flex',flexDirection:'column',gap:6}}>
+                          <input value={editSfData.nome||''} onChange={e=>setEditSfData(p=>({...p,nome:e.target.value}))}
+                            style={{padding:'5px 8px',borderRadius:5,border:'1px solid #e2e8f0',fontSize:12,outline:'none'}}/>
+                          <div style={{display:'flex',gap:6}}>
+                            <input type="date" value={editSfData.scad||''} onChange={e=>setEditSfData(p=>({...p,scad:e.target.value}))}
+                              style={{flex:1,padding:'5px 8px',borderRadius:5,border:'1px solid #e2e8f0',fontSize:12,outline:'none'}}/>
+                            <select value={editSfData.stato||''} onChange={e=>setEditSfData(p=>({...p,stato:e.target.value}))}
+                              style={{flex:1,padding:'5px 8px',borderRadius:5,border:'1px solid #e2e8f0',fontSize:12,outline:'none',color:'#1e293b'}}>
+                              {STATI_SF.map(s=><option key={s} value={s}>{s}</option>)}
+                            </select>
+                          </div>
+                          <div style={{display:'flex',gap:6,justifyContent:'flex-end'}}>
+                            <button onClick={()=>setEditSfId(null)}
+                              style={{padding:'4px 10px',borderRadius:5,border:'1px solid #e2e8f0',background:'#fff',cursor:'pointer',fontSize:11}}>Annulla</button>
+                            <button onClick={()=>handleSaveSf(sf)}
+                              style={{padding:'4px 10px',borderRadius:5,border:'none',background:TEAL,color:'#fff',cursor:'pointer',fontSize:11,fontWeight:600}}>Salva</button>
+                          </div>
+                        </div>
+                      ) : (
+                        <div style={{display:'flex',alignItems:'center',gap:8}}>
+                          <div style={{flex:1}}>
+                            <span style={{fontSize:12,fontWeight:600,color:'#1e293b'}}>{sf.nome}</span>
+                            {sf.scad && <span style={{fontSize:10,color:'#94a3b8',marginLeft:8}}>{disp(sf.scad)}</span>}
+                          </div>
+                          <span style={{fontSize:10,padding:'1px 6px',borderRadius:4,background:scCol+'20',color:scCol,fontWeight:600}}>{sf.stato}</span>
+                          {canEdit && (
+                            <>
+                              <button onClick={()=>{ setEditSfId(sf.id); setEditSfData({nome:sf.nome,scad:sf.scad||'',stato:sf.stato}) }}
+                                style={{background:'none',border:'none',color:'#94a3b8',cursor:'pointer',fontSize:12,padding:'2px 4px'}}
+                                onMouseEnter={e=>e.currentTarget.style.color=TEAL}
+                                onMouseLeave={e=>e.currentTarget.style.color='#94a3b8'}>✏️</button>
+                              <button onClick={()=>handleDeleteSf(sf.id)}
+                                style={{background:'none',border:'none',color:'#94a3b8',cursor:'pointer',fontSize:12,padding:'2px 4px'}}
+                                onMouseEnter={e=>e.currentTarget.style.color='#ef4444'}
+                                onMouseLeave={e=>e.currentTarget.style.color='#94a3b8'}>🗑</button>
+                            </>
+                          )}
+                        </div>
                       )}
                     </div>
                   )
@@ -294,21 +339,47 @@ export default function KanbanCommesse({ currentBU, commesse, setCommesse, curre
                 {milestones.length === 0 && (
                   <div style={{textAlign:'center',color:'#94a3b8',fontSize:12,padding:'8px',fontStyle:'italic'}}>Nessuna milestone</div>
                 )}
-                {milestones.map(ms => (
-                  <div key={ms.id} style={{display:'flex',alignItems:'center',gap:8,padding:'6px 10px',background:'#faf5ff',borderRadius:7,marginBottom:4,border:'1px solid #e9d5ff'}}>
-                    <span style={{fontSize:14,color:'#7c3aed'}}>⬡</span>
-                    <div style={{flex:1}}>
-                      <span style={{fontSize:12,fontWeight:600,color:'#1e293b'}}>{ms.nome}</span>
-                      {ms.scad && <span style={{fontSize:10,color:'#94a3b8',marginLeft:8}}>{disp(ms.scad)}</span>}
+                {milestones.map(ms => {
+                  const isEditing = editMsId === ms.id
+                  return (
+                    <div key={ms.id} style={{padding:'8px 10px',background:'#faf5ff',borderRadius:7,marginBottom:4,border:'1px solid #e9d5ff'}}>
+                      {isEditing ? (
+                        <div style={{display:'flex',flexDirection:'column',gap:6}}>
+                          <input value={editMsData.nome||''} onChange={e=>setEditMsData(p=>({...p,nome:e.target.value}))}
+                            style={{padding:'5px 8px',borderRadius:5,border:'1px solid #e2e8f0',fontSize:12,outline:'none'}}/>
+                          <input type="date" value={editMsData.scad||''} onChange={e=>setEditMsData(p=>({...p,scad:e.target.value}))}
+                            style={{padding:'5px 8px',borderRadius:5,border:'1px solid #e2e8f0',fontSize:12,outline:'none'}}/>
+                          <div style={{display:'flex',gap:6,justifyContent:'flex-end'}}>
+                            <button onClick={()=>setEditMsId(null)}
+                              style={{padding:'4px 10px',borderRadius:5,border:'1px solid #e2e8f0',background:'#fff',cursor:'pointer',fontSize:11}}>Annulla</button>
+                            <button onClick={()=>handleSaveMs(ms)}
+                              style={{padding:'4px 10px',borderRadius:5,border:'none',background:'#7c3aed',color:'#fff',cursor:'pointer',fontSize:11,fontWeight:600}}>Salva</button>
+                          </div>
+                        </div>
+                      ) : (
+                        <div style={{display:'flex',alignItems:'center',gap:8}}>
+                          <span style={{fontSize:14,color:'#7c3aed'}}>⬡</span>
+                          <div style={{flex:1}}>
+                            <span style={{fontSize:12,fontWeight:600,color:'#1e293b'}}>{ms.nome}</span>
+                            {ms.scad && <span style={{fontSize:10,color:'#94a3b8',marginLeft:8}}>{disp(ms.scad)}</span>}
+                          </div>
+                          {canEdit && (
+                            <>
+                              <button onClick={()=>{ setEditMsId(ms.id); setEditMsData({nome:ms.nome,scad:ms.scad||''}) }}
+                                style={{background:'none',border:'none',color:'#94a3b8',cursor:'pointer',fontSize:12,padding:'2px 4px'}}
+                                onMouseEnter={e=>e.currentTarget.style.color='#7c3aed'}
+                                onMouseLeave={e=>e.currentTarget.style.color='#94a3b8'}>✏️</button>
+                              <button onClick={()=>handleDeleteMs(ms.id)}
+                                style={{background:'none',border:'none',color:'#94a3b8',cursor:'pointer',fontSize:12,padding:'2px 4px'}}
+                                onMouseEnter={e=>e.currentTarget.style.color='#ef4444'}
+                                onMouseLeave={e=>e.currentTarget.style.color='#94a3b8'}>🗑</button>
+                            </>
+                          )}
+                        </div>
+                      )}
                     </div>
-                    {canEdit && (
-                      <button onClick={()=>handleDeleteMs(ms.id)}
-                        style={{background:'none',border:'none',color:'#94a3b8',cursor:'pointer',fontSize:12,padding:'2px 4px'}}
-                        onMouseEnter={e=>e.currentTarget.style.color='#ef4444'}
-                        onMouseLeave={e=>e.currentTarget.style.color='#94a3b8'}>🗑</button>
-                    )}
-                  </div>
-                ))}
+                  )
+                })}
                 {canEdit && (
                   <div style={{background:'#faf5ff',border:'1px solid #e9d5ff',borderRadius:8,padding:'10px 12px',marginTop:8}}>
                     <div style={{fontSize:11,fontWeight:700,color:'#7c3aed',marginBottom:8,textTransform:'uppercase',letterSpacing:0.5}}>Nuova Milestone</div>

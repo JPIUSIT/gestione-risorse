@@ -15,6 +15,13 @@ router.post('/', (req, res) => {
   res.json({ id, com_id, bu_id, nome, scad });
 });
 
+router.put('/:id', (req, res) => {
+  const { nome, scad } = req.body;
+  db.prepare('UPDATE milestones SET nome=?, scad=? WHERE id=?')
+    .run(nome, scad||null, req.params.id);
+  res.json({ id: req.params.id, nome, scad });
+});
+
 router.delete('/:id', (req, res) => {
   db.prepare('DELETE FROM milestones WHERE id=?').run(req.params.id);
   res.json({ ok: true });

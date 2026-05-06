@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import axios from 'axios'
 
 const TEAL = "#0d5c63"
@@ -13,6 +13,10 @@ export default function GestioneRisorse({ currentBU, risorse, setRisorse, API, c
   const [showNuovaCat, setShowNuovaCat] = useState(false)
   const [nuovaCatNome, setNuovaCatNome] = useState('')
   const [savingCat, setSavingCat] = useState(false)
+  const [menuCatId, setMenuCatId] = useState(null)
+  const [renameCatId, setRenameCatId] = useState(null)
+  const [renameNome, setRenomeNome] = useState('')
+  const menuRef = useRef(null)
 
   const canEdit = currentRole === 'Admin' || currentRole === 'Coordinatore'
 
@@ -20,6 +24,15 @@ export default function GestioneRisorse({ currentBU, risorse, setRisorse, API, c
     if (!currentBU) return
     axios.get(`${API}/categorie/${currentBU.id}`).then(r => setCategorie(r.data)).catch(()=>{})
   }, [currentBU])
+
+  // Chiudi menu cliccando fuori
+  useEffect(() => {
+    const handler = (e) => {
+      if (menuRef.current && !menuRef.current.contains(e.target)) setMenuCatId(null)
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [])
 
   const risorseFiltrate = risorse.filter(r =>
     !cerca || `${r.nome} ${r.cogn}`.toLowerCase().includes(cerca.toLowerCase()) ||
@@ -68,6 +81,16 @@ export default function GestioneRisorse({ currentBU, risorse, setRisorse, API, c
     setSavingCat(false)
   }
 
+  const handleRinominaCategoria = async (catId) => {
+    if (!renameNome.trim()) return
+    try {
+      await axios.put(`${API}/categorie/${catId}`, { nome: renameNome.trim() })
+      setCategorie(p => p.map(c => c.id === catId ? { ...c, nome: renameNome.trim() } : c))
+    } catch(e) { console.error(e) }
+    setRenameCatId(null)
+    setMenuCatId(null)
+  }
+
   const handleDeleteCategoria = async (catId) => {
     if (!window.confirm('Eliminare questa categoria? Le risorse assegnate diventeranno non assegnate.')) return
     try {
@@ -75,6 +98,7 @@ export default function GestioneRisorse({ currentBU, risorse, setRisorse, API, c
       setCategorie(p => p.filter(c => c.id !== catId))
       setRisorse(p => p.map(r => r.cat_id === catId ? { ...r, cat_id: null } : r))
     } catch(e) { console.error(e) }
+    setMenuCatId(null)
   }
 
   const RisCard = ({ ris, draggable, onRemove }) => {
@@ -155,7 +179,7 @@ export default function GestioneRisorse({ currentBU, risorse, setRisorse, API, c
           <span style={{fontWeight:700,fontSize:14,color:'#1e293b'}}>Categorie BU</span>
           <span style={{fontSize:12,color:'#94a3b8'}}>{risorse.filter(r=>categorie.find(c=>c.id===r.cat_id)).length} assegnate</span>
           {canEdit && (
-            <span style={{fontSize:11,color:'#94a3b8',fontStyle:'italic'}}>· Trascina da J+S o tra categorie · Trascina colonne per riordinarle</span>
+            <span style={{fontSize:11,color:'#94a3b8',fontStyle:'italic'}}>· Trascina da J+S o tra categorie</span>
           )}
           {canEdit && (
             <div style={{marginLeft:'auto',display:'flex',gap:8,alignItems:'center'}}>
@@ -190,6 +214,8 @@ export default function GestioneRisorse({ currentBU, risorse, setRisorse, API, c
           {categorie.map(cat => {
             const ris = risPerCat(cat.id)
             const isDragOver = dragOverCat === cat.id
+            const isMenuOpen = menuCatId === cat.id
+            const isRenaming = renameCatId === cat.id
             return (
               <div key={cat.id}
                 onDragOver={e=>{e.preventDefault();setDragOverCat(cat.id)}}
@@ -198,16 +224,54 @@ export default function GestioneRisorse({ currentBU, risorse, setRisorse, API, c
                 style={{flex:1,display:'flex',flexDirection:'column',borderRight:'1px solid #e2e8f0',minWidth:200,background:isDragOver?'#f0f9fa':'#f8fafc',transition:'background .1s'}}>
 
                 {/* Header categoria */}
-                <div style={{background:TEAL,padding:'8px 12px',display:'flex',alignItems:'center',justifyContent:'space-between',flexShrink:0}}>
-                  <div>
-                    <span style={{fontWeight:700,fontSize:13,color:'#fff'}}>{cat.nome}</span>
-                    <span style={{fontSize:11,color:'rgba(255,255,255,0.6)',marginLeft:8}}>{ris.length} risorse</span>
-                  </div>
-                  {canEdit && (
-                    <button onClick={()=>handleDeleteCategoria(cat.id)}
-                      style={{background:'none',border:'none',color:'rgba(255,255,255,0.4)',cursor:'pointer',fontSize:14,padding:'0 4px',lineHeight:1}}
-                      onMouseEnter={e=>e.currentTarget.style.color='#fca5a5'}
-                      onMouseLeave={e=>e.currentTarget.style.color='rgba(255,255,255,0.4)'}>⋯</button>
+                <div style={{background:TEAL,padding:'8px 12px',display:'flex',alignItems:'center',justifyContent:'space-between',flexShrink:0,position:'relative'}}>
+                  {isRenaming ? (
+                    <div style={{display:'flex',gap:4,flex:1,alignItems:'center'}}>
+                      <input
+                        autoFocus
+                        value={renameNome}
+                        onChange={e=>setRenomeNome(e.target.value)}
+                        onKeyDown={e=>{ if(e.key==='Enter') handleRinominaCategoria(cat.id); if(e.key==='Escape') setRenameCatId(null) }}
+                        style={{flex:1,padding:'3px 6px',borderRadius:4,border:'none',fontSize:12,outline:'none'}}/>
+                      <button onClick={()=>handleRinominaCategoria(cat.id)}
+                        style={{background:'rgba(255,255,255,0.25)',border:'none',color:'#fff',cursor:'pointer',borderRadius:4,padding:'2px 7px',fontSize:11,fontWeight:700}}>✓</button>
+                      <button onClick={()=>setRenameCatId(null)}
+                        style={{background:'none',border:'none',color:'rgba(255,255,255,0.6)',cursor:'pointer',fontSize:14,lineHeight:1}}>×</button>
+                    </div>
+                  ) : (
+                    <>
+                      <div>
+                        <span style={{fontWeight:700,fontSize:13,color:'#fff'}}>{cat.nome}</span>
+                        <span style={{fontSize:11,color:'rgba(255,255,255,0.6)',marginLeft:8}}>{ris.length} risorse</span>
+                      </div>
+                      {canEdit && (
+                        <div style={{position:'relative'}} ref={isMenuOpen ? menuRef : null}>
+                          <button
+                            onClick={()=>{ setMenuCatId(isMenuOpen ? null : cat.id); setRenameCatId(null) }}
+                            style={{background:'none',border:'none',color:'rgba(255,255,255,0.6)',cursor:'pointer',fontSize:16,padding:'0 4px',lineHeight:1}}
+                            onMouseEnter={e=>e.currentTarget.style.color='#fff'}
+                            onMouseLeave={e=>e.currentTarget.style.color='rgba(255,255,255,0.6)'}>⋯</button>
+                          {isMenuOpen && (
+                            <div style={{position:'absolute',right:0,top:'100%',background:'#fff',borderRadius:8,boxShadow:'0 4px 20px rgba(0,0,0,0.15)',border:'1px solid #e2e8f0',zIndex:100,minWidth:140,overflow:'hidden'}}>
+                              <button
+                                onClick={()=>{ setRenameCatId(cat.id); setRenomeNome(cat.nome); setMenuCatId(null) }}
+                                style={{display:'block',width:'100%',textAlign:'left',padding:'9px 14px',border:'none',background:'none',cursor:'pointer',fontSize:12,color:'#1e293b',borderBottom:'1px solid #f1f5f9'}}
+                                onMouseEnter={e=>e.currentTarget.style.background='#f8fafc'}
+                                onMouseLeave={e=>e.currentTarget.style.background='none'}>
+                                ✏️ Rinomina
+                              </button>
+                              <button
+                                onClick={()=>handleDeleteCategoria(cat.id)}
+                                style={{display:'block',width:'100%',textAlign:'left',padding:'9px 14px',border:'none',background:'none',cursor:'pointer',fontSize:12,color:'#ef4444'}}
+                                onMouseEnter={e=>e.currentTarget.style.background='#fff5f5'}
+                                onMouseLeave={e=>e.currentTarget.style.background='none'}>
+                                🗑 Elimina
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </>
                   )}
                 </div>
 
