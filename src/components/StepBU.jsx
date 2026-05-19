@@ -2,25 +2,36 @@ import { useState } from 'react'
 import axios from 'axios'
 
 const TEAL = "#0d5c63"
-const API = 'http://localhost:3002/api'
 
-export default function StepBU({ buList, setBuList, onSelect, user, onLogout }) {
+export default function StepBU({ buList, setBuList, onSelect, user, onLogout, API }) {
   const [showAdd, setShowAdd] = useState(false)
   const [nome, setNome] = useState('')
   const [codice, setCodice] = useState('')
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState('')
 
   const handleAdd = async () => {
     if (!nome.trim()) return
-    const r = await axios.post(`${API}/bu`, { nome, codice: codice || nome.slice(0,3).toUpperCase() })
-    setBuList(p => [...p, r.data])
-    setNome(''); setCodice(''); setShowAdd(false)
+    setSaving(true)
+    setError('')
+    try {
+      const r = await axios.post(`${API}/bu`, { nome: nome.trim(), codice: codice.trim() || nome.trim().slice(0,3).toUpperCase() })
+      setBuList(p => [...p, r.data])
+      setNome(''); setCodice(''); setShowAdd(false)
+    } catch(e) {
+      setError('Errore durante il salvataggio. Riprova.')
+      console.error(e)
+    }
+    setSaving(false)
   }
 
   const handleDelete = async (id, e) => {
     e.stopPropagation()
     if (!window.confirm('Eliminare questa BU?')) return
-    await axios.delete(`${API}/bu/${id}`)
-    setBuList(p => p.filter(b => b.id !== id))
+    try {
+      await axios.delete(`${API}/bu/${id}`)
+      setBuList(p => p.filter(b => b.id !== id))
+    } catch(e) { console.error(e) }
   }
 
   const ruolo = user?.idTokenClaims?.roles?.[0] || 'Nessun ruolo'
@@ -33,9 +44,7 @@ export default function StepBU({ buList, setBuList, onSelect, user, onLogout }) 
         <span style={{fontWeight:700,fontSize:15}}>Gestione Risorse</span>
         <div style={{display:'flex',alignItems:'center',gap:12}}>
           <span style={{fontSize:13}}>{user?.name || user?.username}</span>
-          <span style={{background:'rgba(255,255,255,0.2)',borderRadius:6,padding:'2px 10px',fontSize:12,fontWeight:600}}>
-            {ruolo}
-          </span>
+          <span style={{background:'rgba(255,255,255,0.2)',borderRadius:6,padding:'2px 10px',fontSize:12,fontWeight:600}}>{ruolo}</span>
           <button onClick={onLogout}
             style={{background:'rgba(255,255,255,0.15)',border:'none',color:'#fff',padding:'5px 12px',borderRadius:6,cursor:'pointer',fontSize:12}}>
             Esci
@@ -59,8 +68,7 @@ export default function StepBU({ buList, setBuList, onSelect, user, onLogout }) 
               <div key={bu.id} onClick={() => onSelect(bu)}
                 style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'16px 20px',borderRadius:10,border:'2px solid #e2e8f0',cursor:'pointer',transition:'all .15s',background:'#fff'}}
                 onMouseEnter={e => e.currentTarget.style.borderColor=TEAL}
-                onMouseLeave={e => e.currentTarget.style.borderColor='#e2e8f0'}
-              >
+                onMouseLeave={e => e.currentTarget.style.borderColor='#e2e8f0'}>
                 <div style={{display:'flex',alignItems:'center',gap:12}}>
                   <div style={{width:36,height:36,borderRadius:8,background:TEAL,color:'#fff',display:'flex',alignItems:'center',justifyContent:'center',fontWeight:700,fontSize:12}}>
                     {bu.codice}
@@ -71,8 +79,7 @@ export default function StepBU({ buList, setBuList, onSelect, user, onLogout }) 
                   <button onClick={e => handleDelete(bu.id, e)}
                     style={{background:'none',border:'none',color:'#94a3b8',cursor:'pointer',fontSize:16,padding:'4px 8px',borderRadius:6}}
                     onMouseEnter={e => e.currentTarget.style.color='#ef4444'}
-                    onMouseLeave={e => e.currentTarget.style.color='#94a3b8'}
-                  >✕</button>
+                    onMouseLeave={e => e.currentTarget.style.color='#94a3b8'}>✕</button>
                 )}
               </div>
             ))}
@@ -81,16 +88,19 @@ export default function StepBU({ buList, setBuList, onSelect, user, onLogout }) 
           {ruolo === 'Admin' && (
             showAdd ? (
               <div style={{display:'flex',flexDirection:'column',gap:8,padding:16,background:'#f8fafc',borderRadius:10,border:'1px solid #e2e8f0'}}>
-                <input value={nome} onChange={e => setNome(e.target.value)} placeholder="Nome BU (es. IDR – Idraulica)"
+                <input value={nome} onChange={e=>setNome(e.target.value)} placeholder="Nome BU (es. IDR – Idraulica)"
+                  onKeyDown={e=>e.key==='Enter'&&handleAdd()}
                   style={{padding:'8px 12px',borderRadius:7,border:'1px solid #e2e8f0',fontSize:14,outline:'none'}}/>
-                <input value={codice} onChange={e => setCodice(e.target.value)} placeholder="Codice (es. IDR)"
+                <input value={codice} onChange={e=>setCodice(e.target.value)} placeholder="Codice (es. IDR)"
+                  onKeyDown={e=>e.key==='Enter'&&handleAdd()}
                   style={{padding:'8px 12px',borderRadius:7,border:'1px solid #e2e8f0',fontSize:14,outline:'none'}}/>
+                {error && <div style={{fontSize:12,color:'#ef4444'}}>{error}</div>}
                 <div style={{display:'flex',gap:8}}>
-                  <button onClick={handleAdd}
-                    style={{flex:1,padding:'8px',borderRadius:7,border:'none',background:TEAL,color:'#fff',fontWeight:600,cursor:'pointer',fontSize:14}}>
-                    Aggiungi
+                  <button onClick={handleAdd} disabled={saving||!nome.trim()}
+                    style={{flex:1,padding:'8px',borderRadius:7,border:'none',background:nome.trim()?TEAL:'#e2e8f0',color:nome.trim()?'#fff':'#94a3b8',fontWeight:600,cursor:nome.trim()?'pointer':'default',fontSize:14}}>
+                    {saving?'Salvataggio...':'Aggiungi'}
                   </button>
-                  <button onClick={() => setShowAdd(false)}
+                  <button onClick={()=>{setShowAdd(false);setNome('');setCodice('');setError('')}}
                     style={{flex:1,padding:'8px',borderRadius:7,border:'1px solid #e2e8f0',background:'#fff',cursor:'pointer',fontSize:14}}>
                     Annulla
                   </button>
