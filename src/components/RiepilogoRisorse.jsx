@@ -4,6 +4,7 @@ import axios from 'axios'
 const TEAL = "#0d5c63"
 const AV_PAL = ["#ef4444","#3b82f6","#22c55e","#a855f7","#f59e0b","#06b6d4","#ec4899","#84cc16","#f97316","#6366f1","#14b8a6","#e11d48"]
 const cCol = id => { let h=0; for(let i=0;i<(id||"").length;i++) h=(h*31+id.charCodeAt(i))&0xffff; return AV_PAL[h%AV_PAL.length] }
+const SF_COL = {'In corso':'#06b6d4','Completata':'#22c55e','In attesa':'#f59e0b','Sospesa':'#94a3b8'}
 
 const iso = d => { const dt=new Date(d); return `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}-${String(dt.getDate()).padStart(2,'0')}` }
 const addD = (d,n) => { const dt=new Date(d); dt.setDate(dt.getDate()+n); return dt }
@@ -20,15 +21,18 @@ export default function RiepilogoRisorse({ risorse, commesse, allocazioni, curre
   const [filtroCategoria, setFiltroCategoria] = useState('')
   const [filtroCommessa, setFiltroCommessa] = useState('')
   const [categorieLista, setCategorieLista] = useState([])
+  const [sottofasi, setSottofasi] = useState([])
 
   useEffect(() => {
     if (!currentBU) return
     axios.get(`${API}/categorie/${currentBU.id}`).then(r => setCategorieLista(r.data)).catch(()=>{})
+    axios.get(`${API}/sottofasi/${currentBU.id}`).then(r => setSottofasi(r.data)).catch(()=>{})
   }, [currentBU])
 
   const giorni = useMemo(() => {
     if (viewMode === 'settimana') {
-      return Array.from({length:6}, (_,i) => iso(addD(weekStart, i)))
+      // Lunedì-Venerdì (5 giorni)
+      return Array.from({length:5}, (_,i) => iso(addD(weekStart, i)))
     } else {
       const start = new Date(monthStart+'T00:00:00')
       const year = start.getFullYear()
@@ -68,12 +72,37 @@ export default function RiepilogoRisorse({ risorse, commesse, allocazioni, curre
 
   const getAllocRis = (risId, data) => allocazioni.filter(a => a.ris_id===risId && a.data===data)
   const getTotOreRis = (risId) => giorni.reduce((s,d) => s+getAllocRis(risId,d).reduce((ss,a)=>ss+(a.ore||0),0), 0)
-  const getComIds = (risId) => [...new Set(allocazioni.filter(a=>a.ris_id===risId&&giorni.includes(a.data)).map(a=>a.com_id))]
+  // Fix conteggio commesse — conta commesse UNICHE nel periodo
+  const getComIds = (risId) => [...new Set(allocazioni.filter(a=>a.ris_id===risId && giorni.includes(a.data)).map(a=>a.com_id))]
   const today = iso(new Date())
 
   const risorseDaMostrare = filtroCommessa
     ? risorseFiltrate.filter(r => allocazioni.some(a => a.ris_id===r.id && a.com_id===filtroCommessa && giorni.includes(a.data)))
     : risorseFiltrate
+
+  // Scadenze sottofasi per le risorse nel periodo
+  const getScadenzeRis = (risId) => {
+    const comIdsRis = [...new Set(allocazioni.filter(a=>a.ris_id===risId).map(a=>a.com_id))]
+    return sottofasi.filter(sf => comIdsRis.includes(sf.com_id) && sf.scad && sf.stato !== 'Completata')
+  }
+
+  const getDL = scad => {
+    if (!scad) return null
+    return Math.round((new Date(scad+'T00:00:00') - new Date(today+'T00:00:00')) / 86400000)
+  }
+  const getDLCol = dl => {
+    if (dl===null) return '#94a3b8'
+    if (dl<0) return '#dc2626'
+    if (dl<=3) return '#ea580c'
+    if (dl<=7) return '#d97706'
+    return '#16a34a'
+  }
+
+  // Colonna scadenza nel periodo corrente
+  const getScadenzaInGiorno = (risId, data) => {
+    const comIdsRis = [...new Set(allocazioni.filter(a=>a.ris_id===risId).map(a=>a.com_id))]
+    return sottofasi.filter(sf => comIdsRis.includes(sf.com_id) && sf.scad === data && sf.stato !== 'Completata')
+  }
 
   return (
     <div style={{flex:1,display:'flex',flexDirection:'column',overflow:'hidden',height:'100%'}}>
@@ -168,8 +197,10 @@ export default function RiepilogoRisorse({ risorse, commesse, allocazioni, curre
                     const isToday = d===today
                     const c = comCol||col
                     const cr = `${parseInt(c.slice(1,3),16)},${parseInt(c.slice(3,5),16)},${parseInt(c.slice(5,7),16)}`
+                    // Scadenze sottofasi in questo giorno per questa risorsa
+                    const scadenze = getScadenzaInGiorno(ris.id, d)
                     return (
-                      <td key={d} style={{padding:'2px',textAlign:'center',borderBottom:'1px solid #f1f5f9',background:isToday?'#f0f9fa':'',verticalAlign:'middle',minWidth:viewMode==='mese'?36:80}}>
+                      <td key={d} style={{padding:'2px',textAlign:'center',borderBottom:'1px solid #f1f5f9',background:isToday?'#f0f9fa':'',verticalAlign:'middle',minWidth:viewMode==='mese'?36:80,position:'relative'}}>
                         {tot > 0 ? (
                           <div style={{background:`rgba(${cr},0.15)`,border:`1px solid rgba(${cr},0.35)`,borderRadius:4,padding:'2px 3px',display:'inline-block',minWidth:viewMode==='mese'?28:50}}>
                             <div style={{fontSize:viewMode==='mese'?9:11,fontWeight:700,color:c}}>{tot}h</div>
@@ -182,6 +213,18 @@ export default function RiepilogoRisorse({ risorse, commesse, allocazioni, curre
                         ) : (
                           <span style={{fontSize:14,color:'#f1f5f9'}}>·</span>
                         )}
+                        {/* Diamanti scadenze sottofasi */}
+                        {scadenze.length > 0 && scadenze.map(sf => {
+                          const sfCol = SF_COL[sf.stato] || '#94a3b8'
+                          const dl = getDL(sf.scad)
+                          const dlCol = getDLCol(dl)
+                          return (
+                            <div key={sf.id} title={`${sf.nome} — scad. ${dispFull(sf.scad)}`}
+                              style={{position:'absolute',top:1,right:1,fontSize:10,color:dlCol,lineHeight:1,cursor:'default'}}>
+                              ◆
+                            </div>
+                          )
+                        })}
                       </td>
                     )
                   })}
