@@ -3,7 +3,7 @@ import axios from 'axios'
 
 const TEAL = "#0d5c63"
 
-export default function StepBU({ buList, setBuList, onSelect, user, onLogout, API }) {
+export default function StepBU({ buList, setBuList, onSelect, user, onLogout, API, ruoloUtente }) {
   const [showAdd, setShowAdd] = useState(false)
   const [nome, setNome] = useState('')
   const [codice, setCodice] = useState('')
@@ -35,6 +35,8 @@ export default function StepBU({ buList, setBuList, onSelect, user, onLogout, AP
   }
 
   const ruolo = user?.idTokenClaims?.roles?.[0] || 'Nessun ruolo'
+  const isAdmin = ruolo === 'Admin'
+  const isCoordinatore = ruolo === 'Coordinatore'
 
   return (
     <div style={{minHeight:'100vh',background:'#f0f9fa',fontFamily:'sans-serif'}}>
@@ -63,29 +65,85 @@ export default function StepBU({ buList, setBuList, onSelect, user, onLogout, AP
             <p style={{margin:'8px 0 0',color:'#64748b',fontSize:14}}>Seleziona la Business Unit</p>
           </div>
 
-          <div style={{display:'flex',flexDirection:'column',gap:12,marginBottom:24}}>
-            {buList.map(bu => (
-              <div key={bu.id} onClick={() => onSelect(bu)}
-                style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'16px 20px',borderRadius:10,border:'2px solid #e2e8f0',cursor:'pointer',transition:'all .15s',background:'#fff'}}
-                onMouseEnter={e => e.currentTarget.style.borderColor=TEAL}
-                onMouseLeave={e => e.currentTarget.style.borderColor='#e2e8f0'}>
-                <div style={{display:'flex',alignItems:'center',gap:12}}>
-                  <div style={{width:36,height:36,borderRadius:8,background:TEAL,color:'#fff',display:'flex',alignItems:'center',justifyContent:'center',fontWeight:700,fontSize:12}}>
-                    {bu.codice}
+          {/* Sezione BU propria (Coordinatore) */}
+          {isCoordinatore && (
+            <div style={{marginBottom:20}}>
+              <div style={{fontSize:11,fontWeight:700,color:'#94a3b8',textTransform:'uppercase',letterSpacing:0.5,marginBottom:8}}>
+                La tua BU — accesso come Coordinatore
+              </div>
+              <div style={{display:'flex',flexDirection:'column',gap:8}}>
+                {buList.map(bu => (
+                  <div key={bu.id} onClick={() => onSelect(bu, 'Coordinatore')}
+                    style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'14px 18px',borderRadius:10,border:`2px solid ${TEAL}`,cursor:'pointer',background:'#f0f9fa'}}
+                    onMouseEnter={e => e.currentTarget.style.background='#e0f2f1'}
+                    onMouseLeave={e => e.currentTarget.style.background='#f0f9fa'}>
+                    <div style={{display:'flex',alignItems:'center',gap:12}}>
+                      <div style={{width:36,height:36,borderRadius:8,background:TEAL,color:'#fff',display:'flex',alignItems:'center',justifyContent:'center',fontWeight:700,fontSize:12}}>
+                        {bu.codice}
+                      </div>
+                      <div>
+                        <span style={{fontWeight:600,color:'#1e293b'}}>{bu.nome}</span>
+                        <div style={{fontSize:11,color:TEAL,fontWeight:600}}>✓ Coordinatore</div>
+                      </div>
+                    </div>
                   </div>
-                  <span style={{fontWeight:600,color:'#1e293b'}}>{bu.nome}</span>
-                </div>
-                {ruolo === 'Admin' && (
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Sezione altre BU (Coordinatore come Membro) */}
+          {isCoordinatore && buList.length > 1 && (
+            <div style={{marginBottom:20}}>
+              <div style={{fontSize:11,fontWeight:700,color:'#94a3b8',textTransform:'uppercase',letterSpacing:0.5,marginBottom:8}}>
+                Altre BU — accesso come Membro
+              </div>
+              <div style={{display:'flex',flexDirection:'column',gap:8}}>
+                {buList.map(bu => (
+                  <div key={`membro-${bu.id}`} onClick={() => onSelect(bu, 'Membro')}
+                    style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'14px 18px',borderRadius:10,border:'2px solid #e2e8f0',cursor:'pointer',background:'#fff'}}
+                    onMouseEnter={e => e.currentTarget.style.borderColor='#94a3b8'}
+                    onMouseLeave={e => e.currentTarget.style.borderColor='#e2e8f0'}>
+                    <div style={{display:'flex',alignItems:'center',gap:12}}>
+                      <div style={{width:36,height:36,borderRadius:8,background:'#94a3b8',color:'#fff',display:'flex',alignItems:'center',justifyContent:'center',fontWeight:700,fontSize:12}}>
+                        {bu.codice}
+                      </div>
+                      <div>
+                        <span style={{fontWeight:600,color:'#1e293b'}}>{bu.nome}</span>
+                        <div style={{fontSize:11,color:'#94a3b8',fontWeight:600}}>Membro</div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Lista normale per Admin */}
+          {isAdmin && (
+            <div style={{display:'flex',flexDirection:'column',gap:12,marginBottom:24}}>
+              {buList.map(bu => (
+                <div key={bu.id} onClick={() => onSelect(bu, 'Admin')}
+                  style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'16px 20px',borderRadius:10,border:'2px solid #e2e8f0',cursor:'pointer',transition:'all .15s',background:'#fff'}}
+                  onMouseEnter={e => e.currentTarget.style.borderColor=TEAL}
+                  onMouseLeave={e => e.currentTarget.style.borderColor='#e2e8f0'}>
+                  <div style={{display:'flex',alignItems:'center',gap:12}}>
+                    <div style={{width:36,height:36,borderRadius:8,background:TEAL,color:'#fff',display:'flex',alignItems:'center',justifyContent:'center',fontWeight:700,fontSize:12}}>
+                      {bu.codice}
+                    </div>
+                    <span style={{fontWeight:600,color:'#1e293b'}}>{bu.nome}</span>
+                  </div>
                   <button onClick={e => handleDelete(bu.id, e)}
                     style={{background:'none',border:'none',color:'#94a3b8',cursor:'pointer',fontSize:16,padding:'4px 8px',borderRadius:6}}
                     onMouseEnter={e => e.currentTarget.style.color='#ef4444'}
                     onMouseLeave={e => e.currentTarget.style.color='#94a3b8'}>✕</button>
-                )}
-              </div>
-            ))}
-          </div>
+                </div>
+              ))}
+            </div>
+          )}
 
-          {ruolo === 'Admin' && (
+          {/* Aggiungi nuova BU (solo Admin) */}
+          {isAdmin && (
             showAdd ? (
               <div style={{display:'flex',flexDirection:'column',gap:8,padding:16,background:'#f8fafc',borderRadius:10,border:'1px solid #e2e8f0'}}>
                 <input value={nome} onChange={e=>setNome(e.target.value)} placeholder="Nome BU (es. IDR – Idraulica)"

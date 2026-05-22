@@ -19,6 +19,7 @@ export default function Shell({ currentBU, currentRole, onLogout, onGlobalLogout
   const [commesse, setCommesse] = useState([])
   const [risorse, setRisorse] = useState([])
   const [allocazioni, setAllocazioni] = useState([])
+  const [categorie, setCategorie] = useState([])
   const [loading, setLoading] = useState(true)
   const [tab, setTab] = useState('dashboard')
   const [selectedCom, setSelectedCom] = useState(null)
@@ -44,10 +45,12 @@ export default function Shell({ currentBU, currentRole, onLogout, onGlobalLogout
       axios.get(`${API}/commesse/${bid}`),
       axios.get(`${API}/risorse/${bid}`),
       axios.get(`${API}/allocazioni/${bid}`),
-    ]).then(([c, r, a]) => {
+      axios.get(`${API}/categorie/${bid}`),
+    ]).then(([c, r, a, cat]) => {
       setCommesse(c.data)
       setRisorse(r.data)
       setAllocazioni(a.data)
+      setCategorie(cat.data)
       setLoading(false)
     })
   }, [currentBU])
@@ -94,12 +97,14 @@ export default function Shell({ currentBU, currentRole, onLogout, onGlobalLogout
     return true
   })
 
+  // Mappa risorse per categoria usando i nomi reali
   const catMapFiltrate = {}
-  risorse.filter(r => !cercaRis || `${r.nome} ${r.cogn}`.toLowerCase().includes(cercaRis.toLowerCase()) || r.ruolo?.toLowerCase().includes(cercaRis.toLowerCase()))
+  risorse
+    .filter(r => !cercaRis || `${r.nome} ${r.cogn}`.toLowerCase().includes(cercaRis.toLowerCase()) || r.ruolo?.toLowerCase().includes(cercaRis.toLowerCase()))
     .forEach(r => {
-      const cat = r.cat_id || 'altro'
-      if (!catMapFiltrate[cat]) catMapFiltrate[cat] = []
-      catMapFiltrate[cat].push(r)
+      const catNome = categorie.find(c => c.id === r.cat_id)?.nome || r.cat_id || 'Altro'
+      if (!catMapFiltrate[catNome]) catMapFiltrate[catNome] = []
+      catMapFiltrate[catNome].push(r)
     })
 
   const TABS = [
@@ -211,10 +216,10 @@ export default function Shell({ currentBU, currentRole, onLogout, onGlobalLogout
                 </div>
               </div>
               <div style={{flex:1,overflowY:'auto'}}>
-                {Object.entries(catMapFiltrate).map(([catId, ris]) => (
-                  <div key={catId}>
+                {Object.entries(catMapFiltrate).map(([catNome, ris]) => (
+                  <div key={catNome}>
                     <div style={{padding:'5px 10px',background:'#f8fafc',borderBottom:'1px solid #e2e8f0',display:'flex',justifyContent:'space-between',alignItems:'center',position:'sticky',top:0,zIndex:1}}>
-                      <span style={{fontSize:10,fontWeight:700,color:'#475569',textTransform:'uppercase',letterSpacing:0.5}}>{catId.toUpperCase()}</span>
+                      <span style={{fontSize:10,fontWeight:700,color:'#475569',textTransform:'uppercase',letterSpacing:0.5}}>{catNome}</span>
                       <span style={{fontSize:10,color:'#94a3b8'}}>{ris.length}</span>
                     </div>
                     {ris.map(r => {
@@ -541,7 +546,7 @@ export default function Shell({ currentBU, currentRole, onLogout, onGlobalLogout
 
       </div>
 
-      {/* Modal Info / Firma */}
+      {/* Modal Info */}
       {showInfo && (
         <div style={{position:'fixed',top:0,left:0,right:0,bottom:0,background:'rgba(0,0,0,0.5)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:9999}}
           onClick={()=>setShowInfo(false)}>

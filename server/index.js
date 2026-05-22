@@ -26,6 +26,8 @@ app.use('/api/utenti',     require('./routes/utenti'));
 app.use('/api/sottofasi',  require('./routes/sottofasi'));
 app.use('/api/milestones', require('./routes/milestones'));
 app.use('/api/categorie', require('./routes/categorie'));
+app.use('/api/computo', require('./routes/computo'));
+app.use('/api/sicurezza', require('./routes/sicurezza'));
 
 // Serve frontend React (build)
 app.use(express.static(path.join(__dirname, '../dist')));

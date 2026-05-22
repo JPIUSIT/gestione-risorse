@@ -15,6 +15,7 @@ export default function App() {
   const isAuthenticated = useIsAuthenticated()
   const [buList, setBuList] = useState([])
   const [currentBU, setCurrentBU] = useState(null)
+  const [currentRole, setCurrentRole] = useState(null)
   const [loadingBU, setLoadingBU] = useState(true)
   const [loading, setLoading] = useState(true)
 
@@ -25,16 +26,35 @@ export default function App() {
   useEffect(() => {
     if (!isAuthenticated) { setLoading(false); return }
 
-    // Carica lista BU
     axios.get(`${API}/bu`).then(r => {
       setBuList(r.data)
 
-      // Se non è Admin, cerca la sua BU assegnata
-      if (ruolo !== 'Admin') {
+      if (ruolo === 'Admin') {
+        // Admin vede tutto, sceglie la BU
+        setLoadingBU(false)
+        setLoading(false)
+      } else if (ruolo === 'Coordinatore') {
+        // Coordinatore: carica la sua BU principale ma può anche vedere le altre come Membro
         axios.get(`${API}/utenti/me/${email}`).then(res => {
           if (res.data) {
             const buAssegnata = r.data.find(b => b.id === res.data.bu_id)
-            if (buAssegnata) setCurrentBU(buAssegnata)
+            if (buAssegnata) {
+              setCurrentBU(buAssegnata)
+              setCurrentRole('Coordinatore')
+            }
+          }
+          setLoadingBU(false)
+          setLoading(false)
+        }).catch(() => { setLoadingBU(false); setLoading(false) })
+      } else if (ruolo === 'Membro') {
+        // Membro: va direttamente alla sua BU
+        axios.get(`${API}/utenti/me/${email}`).then(res => {
+          if (res.data) {
+            const buAssegnata = r.data.find(b => b.id === res.data.bu_id)
+            if (buAssegnata) {
+              setCurrentBU(buAssegnata)
+              setCurrentRole('Membro')
+            }
           }
           setLoadingBU(false)
           setLoading(false)
@@ -56,22 +76,27 @@ export default function App() {
 
   if (!ruolo) return <NoAccess user={user} onLogout={() => instance.logoutPopup()} />
 
+  // Se non ha ancora selezionato la BU (Admin o Coordinatore senza BU assegnata)
   if (!currentBU) return (
     <StepBU
-  buList={buList}
-  setBuList={setBuList}
-  onSelect={bu => setCurrentBU(bu)}
-  user={user}
-  onLogout={() => instance.logoutPopup()}
-  API={API}
-/>
+      buList={buList}
+      setBuList={setBuList}
+      onSelect={(bu, roleOverride) => {
+        setCurrentBU(bu)
+        setCurrentRole(roleOverride || ruolo)
+      }}
+      user={user}
+      onLogout={() => instance.logoutPopup()}
+      API={API}
+      ruoloUtente={ruolo}
+    />
   )
 
   return (
     <Shell
       currentBU={currentBU}
-      currentRole={ruolo}
-      onLogout={() => setCurrentBU(null)}
+      currentRole={currentRole || ruolo}
+      onLogout={() => { setCurrentBU(null); setCurrentRole(null) }}
       onGlobalLogout={() => instance.logoutPopup()}
       user={user}
       API={API}
