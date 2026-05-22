@@ -8,17 +8,17 @@ router.get('/:buId', (req, res) => {
 });
 
 router.post('/', (req, res) => {
-  const { bu_id, nome, cogn, cat_id, ruolo, email } = req.body;
+  const { bu_id, nome, cogn, cat_id, ruolo, email, esterno, bu_origine } = req.body;
   const id = `r_${Date.now()}`;
-  db.prepare('INSERT INTO risorse (id, bu_id, nome, cogn, cat_id, ruolo, email) VALUES (?, ?, ?, ?, ?, ?, ?)')
-    .run(id, bu_id, nome, cogn, cat_id||null, ruolo||'', email||'');
-  res.json({ id, bu_id, nome, cogn, cat_id, ruolo, email });
+  db.prepare('INSERT INTO risorse (id, bu_id, nome, cogn, cat_id, ruolo, email, esterno, bu_origine) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)')
+    .run(id, bu_id, nome, cogn, cat_id||null, ruolo||'', email||'', esterno?1:0, bu_origine||null);
+  res.json({ id, bu_id, nome, cogn, cat_id, ruolo, email, esterno: esterno?1:0, bu_origine });
 });
 
 router.put('/:id', (req, res) => {
-  const { nome, cogn, ruolo, email, cat_id } = req.body;
-  db.prepare('UPDATE risorse SET nome=?, cogn=?, ruolo=?, email=?, cat_id=? WHERE id=?')
-    .run(nome||'', cogn||'', ruolo||'', email||'', cat_id||null, req.params.id);
+  const { nome, cogn, ruolo, email, cat_id, esterno, bu_origine } = req.body;
+  db.prepare('UPDATE risorse SET nome=?, cogn=?, ruolo=?, email=?, cat_id=?, esterno=?, bu_origine=? WHERE id=?')
+    .run(nome||'', cogn||'', ruolo||'', email||'', cat_id||null, esterno?1:0, bu_origine||null, req.params.id);
   res.json({ id: req.params.id, ...req.body });
 });
 
