@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import axios from 'axios'
 
 const TEAL = "#0d5c63"
-const SC = {Pianificata:"#3b82f6",Attiva:"#22c55e","In chiusura":"#f97316",Chiusa:"#94a3b8"}
+const SC = {Pianificata:"#3b82f6",Attiva:"#22c55e",Chiusa:"#94a3b8"}
 const SF_COL = {'In corso':'#06b6d4','Completata':'#22c55e','In attesa':'#f59e0b','Sospesa':'#94a3b8'}
 const AV_PAL = ["#ef4444","#3b82f6","#22c55e","#a855f7","#f59e0b","#06b6d4","#ec4899","#84cc16","#f97316","#6366f1","#14b8a6","#e11d48"]
 const cCol = id => { let h=0; for(let i=0;i<(id||"").length;i++) h=(h*31+id.charCodeAt(i))&0xffff; return AV_PAL[h%AV_PAL.length] }
@@ -30,10 +30,15 @@ const getDLLabel = dl => {
   return `${dl}gg`
 }
 
+const TIPI_FILTRO = ['Tutti', 'Sottofasi', 'Milestone', 'Computo', 'Sicurezza']
+
 export default function Scadenziario({ currentBU, commesse, API }) {
   const [sottofasi, setSottofasi] = useState([])
   const [milestones, setMilestones] = useState([])
+  const [computi, setComputi] = useState([])
+  const [sicurezze, setSicurezze] = useState([])
   const [filtroStato, setFiltroStato] = useState('Tutti gli stati')
+  const [filtroTipo, setFiltroTipo] = useState('Tutti')
   const [viewMode, setViewMode] = useState('sett')
   const [tooltip, setTooltip] = useState(null)
   const [showExport, setShowExport] = useState(false)
@@ -44,28 +49,43 @@ export default function Scadenziario({ currentBU, commesse, API }) {
     axios.get(`${API}/sottofasi/${currentBU.id}`).then(r => setSottofasi(r.data)).catch(()=>{})
     Promise.all(commesse.map(c => axios.get(`${API}/milestones/${c.id}`).then(r=>r.data).catch(()=>[])))
       .then(results => setMilestones(results.flat()))
+    Promise.all(commesse.map(c => axios.get(`${API}/computo/${c.id}`).then(r=>r.data).catch(()=>[])))
+      .then(results => setComputi(results.flat()))
+    Promise.all(commesse.map(c => axios.get(`${API}/sicurezza/${c.id}`).then(r=>r.data).catch(()=>[])))
+      .then(results => setSicurezze(results.flat()))
   }, [currentBU, commesse])
 
-  // Chiudi menu export cliccando fuori
   useEffect(() => {
     const handler = (e) => { if (exportRef.current && !exportRef.current.contains(e.target)) setShowExport(false) }
     document.addEventListener('mousedown', handler)
     return () => document.removeEventListener('mousedown', handler)
   }, [])
 
-  // Esporta CSV
+  const commesseFiltrate = commesse.filter(c => {
+    if (c.arch) return false
+    if (filtroStato !== 'Tutti gli stati' && c.stato !== filtroStato) return false
+    return true
+  })
+
+  // Esporta CSV — include tutti i tipi
   const exportCSV = () => {
-    const rows = [['Commessa','Codice','Cliente','Sottofase/Milestone','Tipo','Stato','Scadenza','Giorni restanti']]
+    const rows = [['Commessa','Titolo','Cliente','Nome','Tipo','Stato','Scadenza','Giorni restanti','Importo']]
     commesseFiltrate.forEach(com => {
-      const sfCom = sottofasi.filter(s => s.com_id === com.id)
-      const msCom = milestones.filter(m => m.com_id === com.id)
-      sfCom.forEach(sf => {
+      sottofasi.filter(s=>s.com_id===com.id).forEach(sf => {
         const dl = getDL(sf.scad)
-        rows.push([com.cod, com.tit||'', com.cli||'', sf.nome, 'Sottofase', sf.stato, disp(sf.scad), dl!==null?getDLLabel(dl):''])
+        rows.push([com.cod, com.tit||'', com.cli||'', sf.nome, 'Sottofase', sf.stato, disp(sf.scad), dl!==null?getDLLabel(dl):'', ''])
       })
-      msCom.forEach(ms => {
+      milestones.filter(m=>m.com_id===com.id).forEach(ms => {
         const dl = getDL(ms.scad)
-        rows.push([com.cod, com.tit||'', com.cli||'', ms.nome, 'Milestone', '', disp(ms.scad), dl!==null?getDLLabel(dl):''])
+        rows.push([com.cod, com.tit||'', com.cli||'', ms.nome, 'Milestone', '', disp(ms.scad), dl!==null?getDLLabel(dl):'', ''])
+      })
+      computi.filter(cp=>cp.com_id===com.id).forEach(cp => {
+        const dl = getDL(cp.scad)
+        rows.push([com.cod, com.tit||'', com.cli||'', cp.nome, 'Computo', cp.stato, disp(cp.scad), dl!==null?getDLLabel(dl):'', cp.importo||''])
+      })
+      sicurezze.filter(sk=>sk.com_id===com.id).forEach(sk => {
+        const dl = getDL(sk.scad)
+        rows.push([com.cod, com.tit||'', com.cli||'', sk.nome, 'Sicurezza', sk.stato, disp(sk.scad), dl!==null?getDLLabel(dl):'', ''])
       })
     })
     const csv = rows.map(r => r.map(v => `"${String(v).replace(/"/g,'""')}"`).join(';')).join('\n')
@@ -77,11 +97,7 @@ export default function Scadenziario({ currentBU, commesse, API }) {
     setShowExport(false)
   }
 
-  // Esporta PDF (stampa browser)
-  const exportPDF = () => {
-    window.print()
-    setShowExport(false)
-  }
+  const exportPDF = () => { window.print(); setShowExport(false) }
 
   const generateCols = () => {
     const startDate = new Date(today)
@@ -133,23 +149,24 @@ export default function Scadenziario({ currentBU, commesse, API }) {
 
   const todayColIdx = getColIdx(today)
 
-  const commesseFiltrate = commesse.filter(c => {
-    if (c.arch) return false
-    if (filtroStato !== 'Tutti gli stati' && c.stato !== filtroStato) return false
-    return true
-  })
-
-  const scadenzeAperte = sottofasi
-    .filter(sf => sf.scad && sf.stato !== 'Completata')
-    .map(sf => ({ sf, com: commesse.find(c=>c.id===sf.com_id), dl: getDL(sf.scad) }))
-    .sort((a,b) => a.sf.scad > b.sf.scad ? 1 : -1)
+  // Riepilogo scadenze — include tutti i tipi con filtro
+  const scadenzeAperte = [
+    ...sottofasi.filter(sf=>sf.scad&&sf.stato!=='Completata'&&(filtroTipo==='Tutti'||filtroTipo==='Sottofasi'))
+      .map(sf=>({ item:sf, com:commesse.find(c=>c.id===sf.com_id), dl:getDL(sf.scad), tipo:'Sottofase', icon:'◆', iconCol:SF_COL[sf.stato]||'#94a3b8' })),
+    ...milestones.filter(ms=>ms.scad&&(filtroTipo==='Tutti'||filtroTipo==='Milestone'))
+      .map(ms=>({ item:ms, com:commesse.find(c=>c.id===ms.com_id), dl:getDL(ms.scad), tipo:'Milestone', icon:'★', iconCol:'#7c3aed' })),
+    ...computi.filter(cp=>cp.scad&&cp.stato!=='Completata'&&(filtroTipo==='Tutti'||filtroTipo==='Computo'))
+      .map(cp=>({ item:cp, com:commesse.find(c=>c.id===cp.com_id), dl:getDL(cp.scad), tipo:'Computo', icon:'📐', iconCol:'#ea580c' })),
+    ...sicurezze.filter(sk=>sk.scad&&sk.stato!=='Completata'&&(filtroTipo==='Tutti'||filtroTipo==='Sicurezza'))
+      .map(sk=>({ item:sk, com:commesse.find(c=>c.id===sk.com_id), dl:getDL(sk.scad), tipo:'Sicurezza', icon:'⛑️', iconCol:'#dc2626' })),
+  ].sort((a,b) => a.item.scad > b.item.scad ? 1 : -1)
 
   const critByMonth = {}
-  scadenzeAperte.forEach(({sf, com, dl}) => {
-    const key = sf.scad.slice(0,7)
-    const label = new Date(sf.scad+'T00:00:00').toLocaleDateString('it-IT',{month:'long',year:'numeric'})
+  scadenzeAperte.forEach(entry => {
+    const key = entry.item.scad.slice(0,7)
+    const label = new Date(entry.item.scad+'T00:00:00').toLocaleDateString('it-IT',{month:'long',year:'numeric'})
     if (!critByMonth[key]) critByMonth[key] = { label, items:[] }
-    critByMonth[key].items.push({sf, com, dl})
+    critByMonth[key].items.push(entry)
   })
 
   const COL_W = viewMode==='sett' ? 52 : 80
@@ -161,10 +178,21 @@ export default function Scadenziario({ currentBU, commesse, API }) {
       {/* Toolbar */}
       <div style={{padding:'8px 16px',background:'#fff',borderBottom:'1px solid #e2e8f0',display:'flex',alignItems:'center',gap:12,flexShrink:0,flexWrap:'wrap'}}>
         <span style={{fontWeight:700,fontSize:15,color:'#1e293b'}}>Scadenziario</span>
+
         <select value={filtroStato} onChange={e=>setFiltroStato(e.target.value)}
           style={{padding:'5px 10px',borderRadius:6,border:'1px solid #e2e8f0',fontSize:12,outline:'none',color:'#1e293b'}}>
           {['Tutti gli stati','Pianificata','Attiva','Chiusa'].map(s=><option key={s}>{s}</option>)}
         </select>
+
+        {/* Filtro tipo */}
+        <div style={{display:'flex',border:'1px solid #e2e8f0',borderRadius:6,overflow:'hidden'}}>
+          {TIPI_FILTRO.map(t => (
+            <button key={t} onClick={()=>setFiltroTipo(t)}
+              style={{padding:'4px 10px',border:'none',background:filtroTipo===t?TEAL:'#fff',color:filtroTipo===t?'#fff':'#64748b',cursor:'pointer',fontSize:11,fontWeight:filtroTipo===t?700:400,borderRight:'1px solid #e2e8f0'}}>
+              {t==='Sottofasi'?'◆ Sottofasi':t==='Milestone'?'★ Milestone':t==='Computo'?'📐 Computo':t==='Sicurezza'?'⛑️ Sicurezza':t}
+            </button>
+          ))}
+        </div>
 
         {/* Bottone Esporta */}
         <div style={{position:'relative'}} ref={exportRef}>
@@ -191,13 +219,14 @@ export default function Scadenziario({ currentBU, commesse, API }) {
         </div>
 
         {/* Legenda */}
-        <div style={{display:'flex',alignItems:'center',gap:12,marginLeft:'auto',fontSize:11,color:'#64748b'}}>
-          <span style={{fontWeight:600}}>Legenda:</span>
-          <span style={{display:'flex',alignItems:'center',gap:4}}><span style={{color:'#f59e0b',fontSize:14}}>◆</span> In attesa</span>
-          <span style={{display:'flex',alignItems:'center',gap:4}}><span style={{color:'#06b6d4',fontSize:14}}>◆</span> In corso</span>
-          <span style={{display:'flex',alignItems:'center',gap:4}}><span style={{color:'#22c55e',fontSize:14}}>◆</span> Completata</span>
-          <span style={{display:'flex',alignItems:'center',gap:4}}><span style={{color:'#94a3b8',fontSize:14}}>◆</span> Sospesa</span>
-          <span style={{display:'flex',alignItems:'center',gap:4}}><span style={{color:'#7c3aed',fontSize:14}}>★</span> Milestone</span>
+        <div style={{display:'flex',alignItems:'center',gap:10,marginLeft:'auto',fontSize:11,color:'#64748b',flexWrap:'wrap'}}>
+          <span style={{display:'flex',alignItems:'center',gap:3}}><span style={{color:'#f59e0b'}}>◆</span> In attesa</span>
+          <span style={{display:'flex',alignItems:'center',gap:3}}><span style={{color:'#06b6d4'}}>◆</span> In corso</span>
+          <span style={{display:'flex',alignItems:'center',gap:3}}><span style={{color:'#22c55e'}}>◆</span> Completata</span>
+          <span style={{display:'flex',alignItems:'center',gap:3}}><span style={{color:'#94a3b8'}}>◆</span> Sospesa</span>
+          <span style={{display:'flex',alignItems:'center',gap:3}}><span style={{color:'#7c3aed'}}>★</span> Milestone</span>
+          <span style={{display:'flex',alignItems:'center',gap:3}}>📐 Computo</span>
+          <span style={{display:'flex',alignItems:'center',gap:3}}>⛑️ Sicurezza</span>
           <div style={{display:'flex',border:'1px solid #e2e8f0',borderRadius:5,overflow:'hidden'}}>
             {[['sett','Sett.'],['mese','Mese']].map(([v,l]) => (
               <button key={v} onClick={()=>setViewMode(v)}
@@ -220,14 +249,14 @@ export default function Scadenziario({ currentBU, commesse, API }) {
             {viewMode==='sett' && (
               <tr>
                 <th style={{padding:'4px 10px',textAlign:'left',fontSize:11,color:'#64748b',fontWeight:600,borderBottom:'1px solid #e2e8f0',borderRight:'2px solid #e2e8f0',background:'#f8fafc'}}>
-                  Commessa / Sottofase
+                  Commessa / Elemento
                 </th>
                 {(() => {
                   const monthGroups = []
                   cols.forEach((c,i) => {
                     const m = c.date.toLocaleDateString('it-IT',{month:'short',year:'numeric'})
                     if (!monthGroups.length || monthGroups[monthGroups.length-1].label !== m) {
-                      monthGroups.push({label:m, count:1, idx:i})
+                      monthGroups.push({label:m, count:1})
                     } else {
                       monthGroups[monthGroups.length-1].count++
                     }
@@ -244,7 +273,7 @@ export default function Scadenziario({ currentBU, commesse, API }) {
             <tr>
               {viewMode==='mese' && (
                 <th style={{padding:'4px 10px',textAlign:'left',fontSize:11,color:'#64748b',fontWeight:600,borderBottom:'2px solid #e2e8f0',borderRight:'2px solid #e2e8f0',background:'#f8fafc'}}>
-                  Commessa / Sottofase
+                  Commessa / Elemento
                 </th>
               )}
               {viewMode==='sett' && <th style={{borderRight:'2px solid #e2e8f0',background:'#f8fafc',borderBottom:'2px solid #e2e8f0'}}/>}
@@ -266,10 +295,16 @@ export default function Scadenziario({ currentBU, commesse, API }) {
           <tbody>
             {commesseFiltrate.map((com, ci) => {
               const comCol = cCol(com.id)
-              const sfCom = sottofasi.filter(s => s.com_id === com.id)
-              const msCom = milestones.filter(m => m.com_id === com.id)
               const statoCol = SC[com.stato] || '#94a3b8'
+              const sfCom = filtroTipo==='Tutti'||filtroTipo==='Sottofasi' ? sottofasi.filter(s => s.com_id === com.id) : []
+              const msCom = filtroTipo==='Tutti'||filtroTipo==='Milestone' ? milestones.filter(m => m.com_id === com.id) : []
+              const cpCom = filtroTipo==='Tutti'||filtroTipo==='Computo' ? computi.filter(cp => cp.com_id === com.id) : []
+              const skCom = filtroTipo==='Tutti'||filtroTipo==='Sicurezza' ? sicurezze.filter(sk => sk.com_id === com.id) : []
+
+              if (sfCom.length===0 && msCom.length===0 && cpCom.length===0 && skCom.length===0 && filtroTipo!=='Tutti') return null
+
               return [
+                // Riga commessa
                 <tr key={`com-${com.id}`} style={{background:ci%2===0?'#fff':'#fafafa'}}>
                   <td style={{padding:'6px 10px',borderBottom:'1px solid #f1f5f9',borderRight:'2px solid #e2e8f0',position:'sticky',left:0,background:ci%2===0?'#fff':'#fafafa',zIndex:1}}>
                     <div style={{display:'flex',alignItems:'center',gap:6}}>
@@ -283,11 +318,12 @@ export default function Scadenziario({ currentBU, commesse, API }) {
                     <td key={c.key} style={{borderBottom:'1px solid #f1f5f9',borderLeft:'1px solid #f1f5f9',background:i===todayColIdx?'#f0f9fa':''}}/>
                   ))}
                 </tr>,
+
+                // Righe sottofasi
                 ...sfCom.map(sf => {
                   const sfCol = SF_COL[sf.stato] || '#94a3b8'
                   const colIdx = getColIdx(sf.scad)
                   const dl = getDL(sf.scad)
-                  const dlCol = getDLCol(dl)
                   return (
                     <tr key={`sf-${sf.id}`} style={{background:ci%2===0?'#f9fafb':'#f4f6f8'}}>
                       <td style={{padding:'4px 10px 4px 22px',borderBottom:'1px solid #f1f5f9',borderRight:'2px solid #e2e8f0',position:'sticky',left:0,background:ci%2===0?'#f9fafb':'#f4f6f8',zIndex:1}}>
@@ -298,10 +334,9 @@ export default function Scadenziario({ currentBU, commesse, API }) {
                         </div>
                       </td>
                       {cols.map((c,i) => (
-                        <td key={c.key} style={{borderBottom:'1px solid #f1f5f9',borderLeft:'1px solid #f1f5f9',textAlign:'center',verticalAlign:'middle',background:i===todayColIdx?'#f0f9fa':'',padding:'2px',position:'relative'}}>
+                        <td key={c.key} style={{borderBottom:'1px solid #f1f5f9',borderLeft:'1px solid #f1f5f9',textAlign:'center',verticalAlign:'middle',background:i===todayColIdx?'#f0f9fa':'',padding:'2px'}}>
                           {i === colIdx && sf.scad && (
-                            <div
-                              onMouseEnter={e=>setTooltip({text:`${sf.nome}: ${disp(sf.scad)} (${getDLLabel(dl)})`,x:e.clientX,y:e.clientY})}
+                            <div onMouseEnter={e=>setTooltip({text:`◆ ${sf.nome}: ${disp(sf.scad)} (${getDLLabel(dl)})`,x:e.clientX,y:e.clientY})}
                               onMouseLeave={()=>setTooltip(null)}
                               style={{display:'inline-flex',alignItems:'center',justifyContent:'center',cursor:'default'}}>
                               <span style={{color:sfCol,fontSize:16,lineHeight:1}}>◆</span>
@@ -312,6 +347,8 @@ export default function Scadenziario({ currentBU, commesse, API }) {
                     </tr>
                   )
                 }),
+
+                // Righe milestone
                 ...msCom.map(ms => {
                   const colIdx = getColIdx(ms.scad)
                   const dl = getDL(ms.scad)
@@ -327,8 +364,7 @@ export default function Scadenziario({ currentBU, commesse, API }) {
                       {cols.map((c,i) => (
                         <td key={c.key} style={{borderBottom:'1px solid #f1f5f9',borderLeft:'1px solid #f1f5f9',textAlign:'center',verticalAlign:'middle',background:i===todayColIdx?'#f0f9fa':'',padding:'2px'}}>
                           {i === colIdx && ms.scad && (
-                            <div
-                              onMouseEnter={e=>setTooltip({text:`★ ${ms.nome}: ${disp(ms.scad)}`,x:e.clientX,y:e.clientY})}
+                            <div onMouseEnter={e=>setTooltip({text:`★ ${ms.nome}: ${disp(ms.scad)}`,x:e.clientX,y:e.clientY})}
                               onMouseLeave={()=>setTooltip(null)}
                               style={{display:'inline-flex',alignItems:'center',justifyContent:'center',cursor:'default'}}>
                               <span style={{color:'#7c3aed',fontSize:16,lineHeight:1}}>★</span>
@@ -338,7 +374,68 @@ export default function Scadenziario({ currentBU, commesse, API }) {
                       ))}
                     </tr>
                   )
-                })
+                }),
+
+                // Righe computo
+                ...cpCom.map(cp => {
+                  const cpCol = SF_COL[cp.stato] || '#ea580c'
+                  const colIdx = getColIdx(cp.scad)
+                  const dl = getDL(cp.scad)
+                  return (
+                    <tr key={`cp-${cp.id}`} style={{background:ci%2===0?'#f9fafb':'#f4f6f8'}}>
+                      <td style={{padding:'4px 10px 4px 22px',borderBottom:'1px solid #f1f5f9',borderRight:'2px solid #e2e8f0',position:'sticky',left:0,background:ci%2===0?'#f9fafb':'#f4f6f8',zIndex:1}}>
+                        <div style={{display:'flex',alignItems:'center',gap:6}}>
+                          <span style={{color:'#cbd5e1',fontSize:10}}>└</span>
+                          <span style={{fontSize:12}}>📐</span>
+                          <span style={{fontSize:11,color:'#334155'}}>{cp.nome}</span>
+                          <span style={{fontSize:9,padding:'1px 5px',borderRadius:3,background:cpCol+'20',color:cpCol,fontWeight:700}}>{cp.stato}</span>
+                          {cp.importo>0 && <span style={{fontSize:9,color:'#ea580c',fontWeight:600}}>€{cp.importo?.toLocaleString('it-IT')}</span>}
+                        </div>
+                      </td>
+                      {cols.map((c,i) => (
+                        <td key={c.key} style={{borderBottom:'1px solid #f1f5f9',borderLeft:'1px solid #f1f5f9',textAlign:'center',verticalAlign:'middle',background:i===todayColIdx?'#f0f9fa':'',padding:'2px'}}>
+                          {i === colIdx && cp.scad && (
+                            <div onMouseEnter={e=>setTooltip({text:`📐 ${cp.nome}: ${disp(cp.scad)} (${getDLLabel(dl)})`,x:e.clientX,y:e.clientY})}
+                              onMouseLeave={()=>setTooltip(null)}
+                              style={{display:'inline-flex',alignItems:'center',justifyContent:'center',cursor:'default'}}>
+                              <span style={{color:'#ea580c',fontSize:16,lineHeight:1}}>◆</span>
+                            </div>
+                          )}
+                        </td>
+                      ))}
+                    </tr>
+                  )
+                }),
+
+                // Righe sicurezza
+                ...skCom.map(sk => {
+                  const skCol = SF_COL[sk.stato] || '#dc2626'
+                  const colIdx = getColIdx(sk.scad)
+                  const dl = getDL(sk.scad)
+                  return (
+                    <tr key={`sk-${sk.id}`} style={{background:ci%2===0?'#f9fafb':'#f4f6f8'}}>
+                      <td style={{padding:'4px 10px 4px 22px',borderBottom:'1px solid #f1f5f9',borderRight:'2px solid #e2e8f0',position:'sticky',left:0,background:ci%2===0?'#f9fafb':'#f4f6f8',zIndex:1}}>
+                        <div style={{display:'flex',alignItems:'center',gap:6}}>
+                          <span style={{color:'#cbd5e1',fontSize:10}}>└</span>
+                          <span style={{fontSize:12}}>⛑️</span>
+                          <span style={{fontSize:11,color:'#334155'}}>{sk.nome}</span>
+                          <span style={{fontSize:9,padding:'1px 5px',borderRadius:3,background:skCol+'20',color:skCol,fontWeight:700}}>{sk.stato}</span>
+                        </div>
+                      </td>
+                      {cols.map((c,i) => (
+                        <td key={c.key} style={{borderBottom:'1px solid #f1f5f9',borderLeft:'1px solid #f1f5f9',textAlign:'center',verticalAlign:'middle',background:i===todayColIdx?'#f0f9fa':'',padding:'2px'}}>
+                          {i === colIdx && sk.scad && (
+                            <div onMouseEnter={e=>setTooltip({text:`⛑️ ${sk.nome}: ${disp(sk.scad)} (${getDLLabel(dl)})`,x:e.clientX,y:e.clientY})}
+                              onMouseLeave={()=>setTooltip(null)}
+                              style={{display:'inline-flex',alignItems:'center',justifyContent:'center',cursor:'default'}}>
+                              <span style={{color:'#dc2626',fontSize:16,lineHeight:1}}>◆</span>
+                            </div>
+                          )}
+                        </td>
+                      ))}
+                    </tr>
+                  )
+                }),
               ]
             })}
           </tbody>
@@ -353,7 +450,7 @@ export default function Scadenziario({ currentBU, commesse, API }) {
       )}
 
       {/* Riepilogo scadenze */}
-      <div style={{background:'#fff',borderTop:'2px solid #e2e8f0',flexShrink:0,maxHeight:280,display:'flex',flexDirection:'column',overflow:'hidden'}}>
+      <div className="print-section" style={{background:'#fff',borderTop:'2px solid #e2e8f0',flexShrink:0,maxHeight:300,display:'flex',flexDirection:'column',overflow:'hidden'}}>
         <div style={{background:TEAL,padding:'6px 14px',display:'flex',alignItems:'center',justifyContent:'space-between',flexShrink:0}}>
           <span style={{fontWeight:700,fontSize:12,color:'#fff'}}>Riepilogo Scadenze</span>
           <span style={{fontSize:11,color:'rgba(255,255,255,0.7)'}}>{scadenzeAperte.length} scadenze totali</span>
@@ -366,32 +463,36 @@ export default function Scadenziario({ currentBU, commesse, API }) {
               <thead>
                 <tr style={{background:'#f8fafc'}}>
                   <th style={{padding:'5px 14px',textAlign:'left',fontSize:10,color:'#64748b',fontWeight:600,borderBottom:'1px solid #e2e8f0'}}>Commessa</th>
-                  <th style={{padding:'5px 14px',textAlign:'left',fontSize:10,color:'#64748b',fontWeight:600,borderBottom:'1px solid #e2e8f0'}}>Sottofase</th>
-                  <th style={{padding:'5px 14px',textAlign:'center',fontSize:10,color:'#64748b',fontWeight:600,borderBottom:'1px solid #e2e8f0'}}>Data Scadenza</th>
+                  <th style={{padding:'5px 14px',textAlign:'left',fontSize:10,color:'#64748b',fontWeight:600,borderBottom:'1px solid #e2e8f0'}}>Tipo</th>
+                  <th style={{padding:'5px 14px',textAlign:'left',fontSize:10,color:'#64748b',fontWeight:600,borderBottom:'1px solid #e2e8f0'}}>Nome</th>
+                  <th style={{padding:'5px 14px',textAlign:'center',fontSize:10,color:'#64748b',fontWeight:600,borderBottom:'1px solid #e2e8f0'}}>Scadenza</th>
                   <th style={{padding:'5px 14px',textAlign:'center',fontSize:10,color:'#64748b',fontWeight:600,borderBottom:'1px solid #e2e8f0'}}>Stato</th>
-                  <th style={{padding:'5px 14px',textAlign:'center',fontSize:10,color:'#64748b',fontWeight:600,borderBottom:'1px solid #e2e8f0'}}>Giorni restanti</th>
+                  <th style={{padding:'5px 14px',textAlign:'center',fontSize:10,color:'#64748b',fontWeight:600,borderBottom:'1px solid #e2e8f0'}}>Giorni</th>
                 </tr>
               </thead>
               <tbody>
-                {scadenzeAperte.map(({sf,com,dl},i) => {
+                {scadenzeAperte.map(({item,com,dl,tipo,icon,iconCol},i) => {
                   const dlCol = getDLCol(dl)
-                  const comCol = cCol(sf.com_id)
-                  const sfCol = SF_COL[sf.stato]||'#94a3b8'
+                  const comCol = cCol(item.com_id)
+                  const stCol = SF_COL[item.stato]||'#94a3b8'
                   return (
-                    <tr key={sf.id} style={{borderBottom:'1px solid #f1f5f9',background:i%2===0?'#fff':'#fafafa'}}>
+                    <tr key={`${tipo}-${item.id}`} style={{borderBottom:'1px solid #f1f5f9',background:i%2===0?'#fff':'#fafafa'}}>
                       <td style={{padding:'5px 14px'}}>
                         <div style={{display:'flex',alignItems:'center',gap:6}}>
                           <span style={{width:8,height:8,borderRadius:2,background:comCol,display:'inline-block',flexShrink:0}}/>
                           <div>
                             <div style={{fontWeight:700,color:comCol,fontSize:11}}>{com?.cod}</div>
-                            <div style={{fontSize:10,color:'#94a3b8'}}>{com?.cli?.slice(0,20)}</div>
+                            <div style={{fontSize:10,color:'#94a3b8'}}>{com?.cli?.slice(0,18)}</div>
                           </div>
                         </div>
                       </td>
-                      <td style={{padding:'5px 14px',fontSize:11,color:'#334155'}}>{sf.nome}</td>
-                      <td style={{padding:'5px 14px',textAlign:'center',fontSize:11,fontWeight:700,color:dlCol}}>{disp(sf.scad)}</td>
+                      <td style={{padding:'5px 14px'}}>
+                        <span style={{fontSize:11,color:iconCol}}>{icon} {tipo}</span>
+                      </td>
+                      <td style={{padding:'5px 14px',fontSize:11,color:'#334155'}}>{item.nome}</td>
+                      <td style={{padding:'5px 14px',textAlign:'center',fontSize:11,fontWeight:700,color:dlCol}}>{disp(item.scad)}</td>
                       <td style={{padding:'5px 14px',textAlign:'center'}}>
-                        <span style={{fontSize:10,padding:'1px 7px',borderRadius:4,background:sfCol+'20',color:sfCol,fontWeight:700}}>{sf.stato}</span>
+                        {item.stato && <span style={{fontSize:10,padding:'1px 7px',borderRadius:4,background:stCol+'20',color:stCol,fontWeight:700}}>{item.stato}</span>}
                       </td>
                       <td style={{padding:'5px 14px',textAlign:'center'}}>
                         <span style={{fontSize:11,fontWeight:700,color:dlCol,background:dlCol+'15',borderRadius:6,padding:'2px 8px'}}>{getDLLabel(dl)}</span>
@@ -404,6 +505,7 @@ export default function Scadenziario({ currentBU, commesse, API }) {
           )}
         </div>
 
+        {/* Criticità per mese */}
         {Object.keys(critByMonth).length > 0 && (
           <div style={{borderTop:'1px solid #e2e8f0',flexShrink:0}}>
             <div style={{padding:'5px 14px',background:'#fef9ec',display:'flex',alignItems:'center',gap:6}}>
@@ -423,16 +525,16 @@ export default function Scadenziario({ currentBU, commesse, API }) {
                       <span style={{fontSize:9,color:'rgba(255,255,255,0.7)',marginLeft:6}}>{items.length} scad.</span>
                     </div>
                     <div style={{padding:'4px 6px',display:'flex',flexDirection:'column',gap:3}}>
-                      {items.map(({sf,com,dl}) => {
+                      {items.map(({item,com,dl,icon,iconCol}) => {
                         const dlC = getDLCol(dl)
                         return (
-                          <div key={sf.id} style={{background:`${dlC}08`,border:`1px solid ${dlC}25`,borderRadius:4,padding:'3px 6px'}}>
+                          <div key={`${item.id}-crit`} style={{background:`${dlC}08`,border:`1px solid ${dlC}25`,borderRadius:4,padding:'3px 6px'}}>
                             <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
-                              <span style={{fontSize:10,fontWeight:700,color:cCol(sf.com_id)}}>{com?.cod}</span>
+                              <span style={{fontSize:10,fontWeight:700,color:cCol(item.com_id)}}>{com?.cod} <span style={{color:iconCol}}>{icon}</span></span>
                               <span style={{fontSize:9,fontWeight:700,color:dlC}}>{getDLLabel(dl)}</span>
                             </div>
-                            <div style={{fontSize:9,color:'#334155'}}>{sf.nome}</div>
-                            <div style={{fontSize:9,color:'#94a3b8'}}>{disp(sf.scad)}</div>
+                            <div style={{fontSize:9,color:'#334155'}}>{item.nome}</div>
+                            <div style={{fontSize:9,color:'#94a3b8'}}>{disp(item.scad)}</div>
                           </div>
                         )
                       })}
